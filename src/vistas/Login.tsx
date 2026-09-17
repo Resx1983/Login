@@ -13,7 +13,7 @@ import {
 import { RootStackParamList } from '../types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'> & {
-  onLogin: (email: string, password: string) => string | null;
+  onLogin: (email: string, password: string) => Promise<string | null>;
 };
 
 export default function Login({ navigation, onLogin }: Props) {
@@ -21,8 +21,8 @@ export default function Login({ navigation, onLogin }: Props) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = () => {
-    const result = onLogin(email, password);
+  const handleSubmit = async () => {
+    const result = await onLogin(email, password);
 
     if (result) {
       setError(result);

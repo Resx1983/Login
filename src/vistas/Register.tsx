@@ -13,7 +13,7 @@ import {
 import { RootStackParamList } from '../types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Register'> & {
-  onRegister: (email: string, password: string) => string | null;
+  onRegister: (email: string, password: string) => Promise<string | null>;
 };
 
 export default function Register({ navigation, onRegister }: Props) {
@@ -21,8 +21,8 @@ export default function Register({ navigation, onRegister }: Props) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = () => {
-    const result = onRegister(email, password);
+  const handleSubmit = async () => {
+    const result = await onRegister(email, password);
 
     if (result) {
       setError(result);

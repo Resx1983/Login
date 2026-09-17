@@ -1,0 +1,53 @@
+import * as SQLite from 'expo-sqlite';
+
+export const SCHEMA = `
+PRAGMA journal_mode = WAL;
+PRAGMA foreign_keys = ON;
+
+CREATE TABLE IF NOT EXISTS LOGIN (
+  Id INTEGER PRIMARY KEY,
+  Correo TEXT NOT NULL UNIQUE COLLATE NOCASE,
+  Contrasena TEXT NOT NULL,
+  Rol TEXT NOT NULL DEFAULT 'usuario'
+);
+
+CREATE TABLE IF NOT EXISTS CLIENTES (
+  Id INTEGER PRIMARY KEY,
+  NombreCompleto TEXT NOT NULL,
+  FechaNac TEXT,
+  Correo TEXT
+);
+
+CREATE TABLE IF NOT EXISTS PRODUCTOS (
+  Id INTEGER PRIMARY KEY,
+  Nombre TEXT NOT NULL,
+  Descripcion TEXT,
+  Stock INTEGER NOT NULL DEFAULT 0,
+  PrecioUnitario REAL NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS ENCABEZADO (
+  Id INTEGER PRIMARY KEY,
+  IdCliente INTEGER NOT NULL REFERENCES CLIENTES(Id),
+  Fecha TEXT NOT NULL DEFAULT (date('now')),
+  Total REAL NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS DETALLES (
+  Id INTEGER PRIMARY KEY,
+  IdEncabezado INTEGER NOT NULL REFERENCES ENCABEZADO(Id) ON DELETE CASCADE,
+  IdProducto INTEGER NOT NULL REFERENCES PRODUCTOS(Id),
+  Cantidad INTEGER NOT NULL,
+  Subtotal REAL NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_encabezado_cliente ON ENCABEZADO(IdCliente);
+CREATE INDEX IF NOT EXISTS idx_detalles_encabezado ON DETALLES(IdEncabezado);
+
+INSERT OR IGNORE INTO LOGIN (Correo, Contrasena, Rol)
+VALUES ('demo@correo.com', '123456', 'admin');
+`;
+
+export async function initDb(db: SQLite.SQLiteDatabase) {
+  await db.execAsync(SCHEMA);
+}
