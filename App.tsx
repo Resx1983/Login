@@ -57,10 +57,9 @@ function Navigation() {
 
     try {
       await db.runAsync(
-        'INSERT INTO LOGIN (Correo, Contrasena, Rol) VALUES (?, ?, ?)',
+        "INSERT INTO LOGIN (Correo, Contrasena, Rol, Estado) VALUES (?, ?, 'cliente', 'Pendiente')",
         email.trim().toLowerCase(),
         password.trim(),
-        'usuario'
       );
     } catch {
       // UNIQUE(Correo) es la única restricción que puede fallar aquí
