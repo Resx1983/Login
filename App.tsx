@@ -4,6 +4,7 @@ import { SQLiteProvider, useSQLiteContext } from 'expo-sqlite';
 import { StatusBar } from 'expo-status-bar';
 
 import { AuthProvider, useAuth } from './src/context/AuthContext';
+import { CarritoProvider } from './src/context/CarritoContext';
 import { initDb } from './src/db';
 import Home from './src/vistas/Home';
 import Login from './src/vistas/Login';
@@ -98,7 +99,9 @@ export default function App() {
   return (
     <SQLiteProvider databaseName="tienda.db" onInit={initDb}>
       <AuthProvider>
-        <Navigation />
+        <CarritoProvider>
+          <Navigation />
+        </CarritoProvider>
       </AuthProvider>
     </SQLiteProvider>
   );
