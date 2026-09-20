@@ -1,69 +1,71 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { SQLiteProvider, useSQLiteContext } from 'expo-sqlite';
 import { StatusBar } from 'expo-status-bar';
-import { useState } from 'react';
 
+import { initDb } from './src/db';
 import Home from './src/vistas/Home';
 import Login from './src/vistas/Login';
 import Register from './src/vistas/Register';
-import { RootStackParamList, User } from './src/types';
+import { RootStackParamList } from './src/types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-export default function App() {
-  const [users, setUsers] = useState<User[]>([
-    { email: 'demo@correo.com', password: '123456' },
-  ]);
+function validateCredentials(email: string, password: string) {
+  const trimmedEmail = email.trim().toLowerCase();
+  const trimmedPassword = password.trim();
 
-  const validateCredentials = (email: string, password: string) => {
-    const trimmedEmail = email.trim().toLowerCase();
-    const trimmedPassword = password.trim();
+  if (!trimmedEmail || !trimmedPassword) {
+    return 'Correo y contraseña son obligatorios.';
+  }
 
-    if (!trimmedEmail || !trimmedPassword) {
-      return 'Correo y contraseña son obligatorios.';
-    }
+  if (!/\S+@\S+\.\S+/.test(trimmedEmail)) {
+    return 'Ingresa un correo válido.';
+  }
 
-    if (!/\S+@\S+\.\S+/.test(trimmedEmail)) {
-      return 'Ingresa un correo válido.';
-    }
+  return null;
+}
 
-    return null;
-  };
+function Navigation() {
+  const db = useSQLiteContext();
 
-  const handleLogin = (email: string, password: string) => {
+  const handleLogin = async (email: string, password: string) => {
     const validationError = validateCredentials(email, password);
 
     if (validationError) {
       return validationError;
     }
 
-    const user = users.find((item) => item.email === email.trim().toLowerCase());
+    const user = await db.getFirstAsync<{ Contrasena: string }>(
+      'SELECT Contrasena FROM LOGIN WHERE Correo = ?',
+      email.trim().toLowerCase()
+    );
 
     if (!user) {
       return 'No existe una cuenta con ese correo.';
     }
 
-    return user.password === password.trim() ? null : 'La contraseña es incorrecta.';
+    return user.Contrasena === password.trim() ? null : 'La contraseña es incorrecta.';
   };
 
-  const handleRegister = (email: string, password: string) => {
+  const handleRegister = async (email: string, password: string) => {
     const validationError = validateCredentials(email, password);
 
     if (validationError) {
       return validationError;
     }
 
-    const normalizedEmail = email.trim().toLowerCase();
-    const alreadyExists = users.some((user) => user.email === normalizedEmail);
-
-    if (alreadyExists) {
+    try {
+      await db.runAsync(
+        'INSERT INTO LOGIN (Correo, Contrasena, Rol) VALUES (?, ?, ?)',
+        email.trim().toLowerCase(),
+        password.trim(),
+        'usuario'
+      );
+    } catch {
+      // UNIQUE(Correo) es la única restricción que puede fallar aquí
       return 'Este correo ya está registrado.';
     }
-
-    setUsers((currentUsers) => [
-      ...currentUsers,
-      { email: normalizedEmail, password: password.trim() },
-    ]);
 
     return null;
   };
@@ -81,5 +83,13 @@ export default function App() {
         <Stack.Screen name="Home" component={Home} />
       </Stack.Navigator>
     </NavigationContainer>
+  );
+}
+
+export default function App() {
+  return (
+    <SQLiteProvider databaseName="tienda.db" onInit={initDb}>
+      <Navigation />
+    </SQLiteProvider>
   );
 }
