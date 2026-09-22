@@ -8,7 +8,7 @@ import { color, espacio, texto } from '../ui/tema';
 export const REGLAS = [
   { texto: 'Al menos 8 caracteres', cumple: (p: string) => p.length >= 8 },
   { texto: 'Una letra mayúscula', cumple: (p: string) => /[A-Z]/.test(p) },
-  { texto: 'Un número', cumple: (p: string) => /[0-9]/.test(p) },
+  { texto: 'Un número', cumple: (p: string) => /\d/.test(p) },
 ];
 
 /**
@@ -18,7 +18,7 @@ export const REGLAS = [
 export function primerFallo(clave: string): string | null {
   if (clave.length < 8) return 'Faltan caracteres: usa 8 o más.';
   if (!/[A-Z]/.test(clave)) return 'Añade al menos una letra mayúscula.';
-  if (!/[0-9]/.test(clave)) return 'Añade al menos un número.';
+  if (!/\d/.test(clave)) return 'Añade al menos un número.';
   return null;
 }
 
