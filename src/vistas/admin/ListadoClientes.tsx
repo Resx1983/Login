@@ -1,13 +1,10 @@
+import { useFocusEffect } from '@react-navigation/native';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useCallback, useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { useCallback, useState } from 'react';
+import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
+
+import { Cabecera, Cargando, FilaRegistro, Marca, Vacio } from '../../ui/componentes';
+import { color, espacio, texto } from '../../ui/tema';
 
 type ClienteConCorreo = {
   Id: number;
@@ -40,96 +37,78 @@ export default function ListadoClientes() {
     setRefreshing(false);
   }, [db]);
 
-  useEffect(() => { cargar(); }, [cargar]);
+  // Las pestañas no se desmontan: sin esto la pantalla se queda con los datos
+  // que leyó la primera vez. Se recarga cada vez que vuelve al frente.
+  useFocusEffect(useCallback(() => { cargar(); }, [cargar]));
 
-  if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#3b82f6" />
-      </View>
-    );
-  }
+  if (loading) return <Cargando />;
 
   return (
     <FlatList
-      style={styles.container}
+      style={s.pantalla}
       data={clientes}
       keyExtractor={(item) => String(item.Id)}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
           onRefresh={() => { setRefreshing(true); cargar(); }}
-          tintColor="#3b82f6"
+          tintColor={color.tinta}
+          colors={[color.tinta]}
         />
       }
       ListHeaderComponent={
-        <Text style={styles.sectionTitle}>🗂️ Listado de clientes ({clientes.length})</Text>
+        <Cabecera
+          rotulo="Clientes"
+          titulo={String(clientes.length).padStart(2, '0')}
+          apoyo="Solo aparecen las cuentas que ya completaron su perfil."
+        />
       }
       ListEmptyComponent={
-        <View style={styles.emptyBox}>
-          <Text style={styles.emptyIcon}>👤</Text>
-          <Text style={styles.emptyText}>Aún no hay clientes registrados</Text>
+        <View style={s.hojaVacia}>
+          <Vacio
+            icono="users"
+            titulo="Ningún perfil completo"
+            cuerpo="Un cliente aparece aquí en cuanto guarda su nombre y apellido desde la pestaña Perfil."
+          />
         </View>
       }
-      renderItem={({ item }) => (
-        <View style={styles.card}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>
-              {(item.Nombre ?? item.LoginCorreo)[0].toUpperCase()}
-            </Text>
-          </View>
-          <View style={styles.info}>
-            <Text style={styles.nombre}>
-              {item.Nombre && item.Apellido
-                ? `${item.Nombre} ${item.Apellido}`
-                : '(Sin nombre)'
-              }
-            </Text>
-            <Text style={styles.correo}>{item.Correo ?? item.LoginCorreo}</Text>
-          </View>
-        </View>
-      )}
-      contentContainerStyle={styles.list}
+      renderItem={({ item, index }) => {
+        const completo = !!(item.Nombre && item.Apellido);
+        const inicial = (item.Nombre ?? item.LoginCorreo).trim()[0]?.toUpperCase() ?? '?';
+        return (
+          <FilaRegistro
+            titulo={completo ? `${item.Nombre} ${item.Apellido}` : 'Perfil sin nombre'}
+            apoyo={item.Correo ?? item.LoginCorreo}
+            ultima={index === clientes.length - 1}
+            marca={!completo ? <Marca tono="espera">Datos incompletos</Marca> : undefined}
+            adorno={
+              <View style={s.inicialPlaca}>
+                <Text style={[texto.titulo, s.inicial]}>{inicial}</Text>
+              </View>
+            }
+          />
+        );
+      }}
+      contentContainerStyle={s.lista}
     />
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f172a' },
-  center: { flex: 1, backgroundColor: '#0f172a', justifyContent: 'center', alignItems: 'center' },
-  list: { padding: 16, paddingBottom: 40 },
-  sectionTitle: {
-    color: '#94a3b8',
-    fontSize: 13,
-    fontWeight: '700',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    marginBottom: 14,
-  },
-  card: {
-    backgroundColor: '#111827',
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#1f2937',
-  },
-  avatar: {
+const s = StyleSheet.create({
+  pantalla: { flex: 1, backgroundColor: color.tabla },
+  lista: { paddingBottom: espacio.xxxl },
+  inicialPlaca: {
     width: 44,
     height: 44,
-    borderRadius: 22,
-    backgroundColor: '#1e3a5f',
-    justifyContent: 'center',
+    backgroundColor: color.tinta,
     alignItems: 'center',
-    marginRight: 14,
+    justifyContent: 'center',
   },
-  avatarText: { color: '#60a5fa', fontSize: 18, fontWeight: '700' },
-  info: { flex: 1 },
-  nombre: { color: '#f8fafc', fontSize: 15, fontWeight: '600' },
-  correo: { color: '#64748b', fontSize: 13, marginTop: 2 },
-  emptyBox: { alignItems: 'center', paddingVertical: 60 },
-  emptyIcon: { fontSize: 48, marginBottom: 12 },
-  emptyText: { color: '#475569', fontSize: 15 },
+  inicial: { color: color.sobreTinta },
+  hojaVacia: {
+    backgroundColor: color.lamina,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: color.regla,
+  },
 });

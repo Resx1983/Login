@@ -1,19 +1,18 @@
 import { useSQLiteContext } from 'expo-sqlite';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
 
 import { useAuth } from '../../context/AuthContext';
 import { ClienteRow } from '../../types';
+import { Aviso, Boton, Cabecera, Campo, Cargando, Placa } from '../../ui/componentes';
+import { color, espacio, texto } from '../../ui/tema';
 
 type FormPerfil = {
   nombre: string;
@@ -53,17 +52,21 @@ export default function Perfil() {
 
   useEffect(() => { cargarPerfil(); }, [cargarPerfil]);
 
+  const temporizador = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (temporizador.current) clearTimeout(temporizador.current); }, []);
+
   const mostrarMensaje = (texto: string, tipo: 'ok' | 'error') => {
     setMensaje({ texto, tipo });
-    setTimeout(() => setMensaje(null), 3000);
+    if (temporizador.current) clearTimeout(temporizador.current);
+    temporizador.current = setTimeout(() => setMensaje(null), 4500);
   };
 
   const validar = (): boolean => {
     const e: Partial<FormPerfil> = {};
-    if (!form.nombre.trim()) e.nombre = 'El nombre es obligatorio.';
-    if (!form.apellido.trim()) e.apellido = 'El apellido es obligatorio.';
+    if (!form.nombre.trim()) e.nombre = 'Escribe tu nombre como aparece en la factura.';
+    if (!form.apellido.trim()) e.apellido = 'Escribe tu apellido.';
     if (!form.correo.trim() || !/\S+@\S+\.\S+/.test(form.correo.trim())) {
-      e.correo = 'Ingresa un correo válido.';
+      e.correo = 'Ese correo no tiene un formato válido. Revisa que incluya @ y un dominio.';
     }
     setErrores(e);
     return Object.keys(e).length === 0;
@@ -92,148 +95,118 @@ export default function Perfil() {
           form.correo.trim().toLowerCase(),
         );
       }
-      mostrarMensaje('✅ Perfil guardado correctamente', 'ok');
+      mostrarMensaje('Perfil guardado', 'ok');
       await cargarPerfil();
     } catch {
-      mostrarMensaje('❌ Error al guardar el perfil', 'error');
+      mostrarMensaje('No se pudo guardar el perfil. Inténtalo otra vez.', 'error');
     } finally {
       setGuardando(false);
     }
   };
 
-  if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#3b82f6" />
-      </View>
-    );
-  }
+  if (loading) return <Cargando />;
+
+  const completo = !!cliente;
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={s.pantalla}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        {/* Aviso si perfil incompleto */}
-        {!cliente && (
-          <View style={styles.warningBox}>
-            <Text style={styles.warningTitle}>⚠️ Perfil incompleto</Text>
-            <Text style={styles.warningText}>
-              Completa tus datos personales para poder realizar compras.
-            </Text>
-          </View>
-        )}
+      <ScrollView
+        contentContainerStyle={s.scroll}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <Cabecera
+          tamano="grande"
+          titulo={completo ? `${form.nombre} ${form.apellido}`.trim() : 'Completa tu perfil'}
+          apoyo={
+            completo
+              ? 'Estos son los datos que quedan registrados en cada compra.'
+              : 'Sin nombre y apellido no se puede registrar una compra a tu nombre.'
+          }
+        />
 
-        {/* Flash */}
-        {mensaje && (
-          <View style={[styles.flash, mensaje.tipo === 'ok' ? styles.flashOk : styles.flashError]}>
-            <Text style={styles.flashText}>{mensaje.texto}</Text>
-          </View>
-        )}
-
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>
-            {cliente ? '👤 Mi perfil' : '📝 Completa tu perfil'}
-          </Text>
-
-          <Text style={styles.label}>Nombre *</Text>
-          <TextInput
-            style={[styles.input, errores.nombre && styles.inputError]}
+        <View style={s.formulario}>
+          <Campo
+            rotulo="Nombre"
+            obligatorio
             placeholder="Tu nombre"
-            placeholderTextColor="#9aa0a6"
+            autoComplete="given-name"
+            textContentType="givenName"
             value={form.nombre}
+            error={errores.nombre}
             onChangeText={(v) => { setForm((f) => ({ ...f, nombre: v })); setErrores((e) => ({ ...e, nombre: undefined })); }}
           />
-          {errores.nombre && <Text style={styles.fieldError}>{errores.nombre}</Text>}
 
-          <Text style={styles.label}>Apellido *</Text>
-          <TextInput
-            style={[styles.input, errores.apellido && styles.inputError]}
+          <Campo
+            rotulo="Apellido"
+            obligatorio
             placeholder="Tu apellido"
-            placeholderTextColor="#9aa0a6"
+            autoComplete="family-name"
+            textContentType="familyName"
             value={form.apellido}
+            error={errores.apellido}
             onChangeText={(v) => { setForm((f) => ({ ...f, apellido: v })); setErrores((e) => ({ ...e, apellido: undefined })); }}
           />
-          {errores.apellido && <Text style={styles.fieldError}>{errores.apellido}</Text>}
 
-          <Text style={styles.label}>Correo *</Text>
-          <TextInput
-            style={[styles.input, errores.correo && styles.inputError]}
+          <Campo
+            rotulo="Correo de contacto"
+            obligatorio
             placeholder="tu@correo.com"
-            placeholderTextColor="#9aa0a6"
             keyboardType="email-address"
             autoCapitalize="none"
+            autoComplete="email"
+            textContentType="emailAddress"
             value={form.correo}
+            error={errores.correo}
             onChangeText={(v) => { setForm((f) => ({ ...f, correo: v })); setErrores((e) => ({ ...e, correo: undefined })); }}
           />
-          {errores.correo && <Text style={styles.fieldError}>{errores.correo}</Text>}
 
-          <TouchableOpacity
-            style={[styles.saveBtn, guardando && styles.btnDisabled]}
-            onPress={guardar}
-            disabled={guardando}
-          >
-            {guardando
-              ? <ActivityIndicator color="#fff" />
-              : <Text style={styles.saveBtnText}>
-                  {cliente ? 'Guardar cambios' : 'Crear perfil'}
-                </Text>
-            }
-          </TouchableOpacity>
+          <View style={s.cuenta}>
+            <Placa>Cuenta de acceso</Placa>
+            <Text style={[texto.cuerpo, s.cuentaCorreo]}>{usuario?.email}</Text>
+            <Text style={[texto.menor, s.cuentaNota]}>
+              El correo con el que entras no cambia desde aquí.
+            </Text>
+          </View>
+
         </View>
       </ScrollView>
+
+      <View style={s.pie}>
+        {mensaje && (
+          <View style={s.aviso}>
+            <Aviso texto={mensaje.texto} tipo={mensaje.tipo} />
+          </View>
+        )}
+        <Boton onPress={guardar} cargando={guardando} icono="check">
+          {completo ? 'Guardar cambios' : 'Crear perfil'}
+        </Boton>
+      </View>
     </KeyboardAvoidingView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f172a' },
-  center: { flex: 1, backgroundColor: '#0f172a', justifyContent: 'center', alignItems: 'center' },
-  scroll: { padding: 16, paddingBottom: 40 },
-  warningBox: {
-    backgroundColor: '#431407',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 16,
-    borderLeftWidth: 4,
-    borderLeftColor: '#f97316',
+const s = StyleSheet.create({
+  pantalla: { flex: 1, backgroundColor: color.tabla },
+  scroll: { paddingBottom: 96 },
+  aviso: { marginBottom: espacio.md },
+  formulario: { paddingHorizontal: espacio.base, paddingTop: espacio.sm },
+  cuenta: {
+    backgroundColor: color.lamina,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: color.regla,
+    padding: espacio.base,
+    marginBottom: espacio.xl,
   },
-  warningTitle: { color: '#fdba74', fontWeight: '700', fontSize: 15, marginBottom: 4 },
-  warningText: { color: '#fed7aa', fontSize: 14, lineHeight: 20 },
-  flash: { padding: 12, borderRadius: 10, marginBottom: 12 },
-  flashOk: { backgroundColor: '#14532d' },
-  flashError: { backgroundColor: '#450a0a' },
-  flashText: { color: '#f8fafc', fontWeight: '600', textAlign: 'center' },
-  card: {
-    backgroundColor: '#111827',
-    borderRadius: 16,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: '#1f2937',
+  pie: {
+    padding: espacio.base,
+    backgroundColor: color.tabla,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: color.regla,
   },
-  cardTitle: { color: '#f8fafc', fontSize: 20, fontWeight: '700', marginBottom: 20 },
-  label: { color: '#94a3b8', fontSize: 13, fontWeight: '600', marginBottom: 6 },
-  input: {
-    backgroundColor: '#1f2937',
-    borderColor: '#374151',
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    marginBottom: 4,
-    color: '#f8fafc',
-    fontSize: 16,
-  },
-  inputError: { borderColor: '#ef4444' },
-  fieldError: { color: '#fca5a5', fontSize: 13, marginBottom: 12 },
-  saveBtn: {
-    backgroundColor: '#3b82f6',
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 16,
-  },
-  btnDisabled: { opacity: 0.5 },
-  saveBtnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  cuentaCorreo: { color: color.tinta, marginTop: espacio.sm },
+  cuentaNota: { color: color.tintaMedia, marginTop: espacio.xs },
 });

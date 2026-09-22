@@ -1,3 +1,4 @@
+import { Feather } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
 import {
@@ -6,51 +7,62 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { RootStackParamList } from '../types';
+import { Aviso, Boton, Campo, Enlace, Placa, Regla } from '../ui/componentes';
+import { color, espacio, texto } from '../ui/tema';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Register'> & {
   onRegister: (email: string, password: string) => Promise<string | null>;
 };
 
+/** Reglas de contraseña. Se muestran mientras se escribe, no después de fallar. */
+const REGLAS = [
+  { texto: 'Al menos 8 caracteres', cumple: (p: string) => p.length >= 8 },
+  { texto: 'Una letra mayúscula', cumple: (p: string) => /[A-Z]/.test(p) },
+  { texto: 'Un número', cumple: (p: string) => /[0-9]/.test(p) },
+];
+
 /** Valida que la contraseña sea segura: mín. 8 chars, 1 mayúscula, 1 número */
 function validatePassword(password: string): string | null {
-  if (password.length < 8) return 'La contraseña debe tener al menos 8 caracteres.';
-  if (!/[A-Z]/.test(password)) return 'La contraseña debe incluir al menos una mayúscula.';
-  if (!/[0-9]/.test(password)) return 'La contraseña debe incluir al menos un número.';
+  if (password.length < 8) return 'Faltan caracteres: usa 8 o más.';
+  if (!/[A-Z]/.test(password)) return 'Añade al menos una letra mayúscula.';
+  if (!/[0-9]/.test(password)) return 'Añade al menos un número.';
   return null;
 }
 
 /** Valida formato de correo */
 function validateEmail(email: string): string | null {
-  if (!email.trim()) return 'El correo es obligatorio.';
-  if (!/\S+@\S+\.\S+/.test(email.trim())) return 'Ingresa un correo electrónico válido.';
+  if (!email.trim()) return 'Escribe el correo con el que vas a entrar.';
+  if (!/\S+@\S+\.\S+/.test(email.trim())) return 'Ese correo no tiene un formato válido. Revisa que incluya @ y un dominio.';
   return null;
 }
 
+type Errores = { correo?: string; clave?: string; confirmacion?: string; general?: string };
+
 export default function Register({ navigation, onRegister }: Props) {
+  const inset = useSafeAreaInsets();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [errores, setErrores] = useState<Errores>({});
   const [loading, setLoading] = useState(false);
   const [registered, setRegistered] = useState(false);
 
   const handleSubmit = async () => {
-    setError(null);
+    setErrores({});
 
     const emailError = validateEmail(email);
-    if (emailError) { setError(emailError); return; }
+    if (emailError) { setErrores({ correo: emailError }); return; }
 
     const passwordError = validatePassword(password);
-    if (passwordError) { setError(passwordError); return; }
+    if (passwordError) { setErrores({ clave: passwordError }); return; }
 
     if (password !== confirmPassword) {
-      setError('Las contraseñas no coinciden.');
+      setErrores({ confirmacion: 'Las dos contraseñas no coinciden.' });
       return;
     }
 
@@ -59,181 +71,159 @@ export default function Register({ navigation, onRegister }: Props) {
     setLoading(false);
 
     if (result) {
-      setError(result);
+      setErrores({ general: result });
       return;
     }
 
     setRegistered(true);
   };
 
-  // ── Pantalla de confirmación ──────────────────────────────────────────────
+  // ── Solicitud enviada ──────────────────────────────────────────────────────
   if (registered) {
     return (
-      <View style={styles.container}>
-        <View style={styles.card}>
-          <View style={styles.iconWrapper}>
-            <Text style={styles.iconText}>⏳</Text>
-          </View>
-          <Text style={styles.title}>Solicitud enviada</Text>
-          <Text style={styles.subtitle}>
-            Tu cuenta ha sido registrada con el correo:
+      <View style={[s.pantalla, s.confirmacion, { paddingTop: inset.top, paddingBottom: inset.bottom }]}>
+        <View>
+          <Placa>Estado de la solicitud</Placa>
+          <Text style={[texto.mega, s.confirmacionTitulo]}>EN{'\n'}ESPERA</Text>
+          <View style={s.reglaGruesa} />
+          <Text style={[texto.cuerpo, s.confirmacionCuerpo]}>
+            Guardamos tu solicitud para{' '}
+            <Text style={texto.cuerpoFuerte}>{email.trim().toLowerCase()}</Text>. Un administrador
+            debe activarla y asignarte un rol antes de que puedas entrar.
           </Text>
-          <Text style={styles.emailHighlight}>{email.trim().toLowerCase()}</Text>
-          <View style={styles.infoBox}>
-            <Text style={styles.infoText}>
-              Un administrador revisará tu solicitud y activará tu cuenta.
-              Recibirás acceso una vez que sea aprobada.
-            </Text>
-          </View>
-          <TouchableOpacity
-            style={styles.primaryButton}
-            onPress={() => navigation.replace('Login')}
-          >
-            <Text style={styles.primaryButtonText}>Ir al inicio de sesión</Text>
-          </TouchableOpacity>
         </View>
+
+        <Boton onPress={() => navigation.replace('Login')} icono="arrow-left">
+          Volver a iniciar sesión
+        </Boton>
       </View>
     );
   }
 
-  // ── Formulario de registro ─────────────────────────────────────────────────
+  // ── Formulario ─────────────────────────────────────────────────────────────
   return (
     <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={s.pantalla}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <View style={styles.card}>
-          <Text style={styles.title}>Crear cuenta</Text>
-          <Text style={styles.subtitle}>
-            Completa el formulario para solicitar acceso a la plataforma
+      <ScrollView
+        contentContainerStyle={[
+          s.scroll,
+          { paddingTop: inset.top + espacio.xxl, paddingBottom: inset.bottom + espacio.xl },
+        ]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View>
+          <Text style={[texto.gigante, s.titulo]}>SOLICITAR{'\n'}ACCESO</Text>
+          <Text style={[texto.menor, s.subtitulo]}>
+            La cuenta queda en espera hasta que un administrador la active.
           </Text>
+        </View>
 
-          <Text style={styles.label}>Correo electrónico</Text>
-          <TextInput
-            style={styles.input}
+        <View style={s.formulario}>
+          <Campo
+            rotulo="Correo"
+            obligatorio
             placeholder="tu@correo.com"
-            placeholderTextColor="#9aa0a6"
             keyboardType="email-address"
             autoCapitalize="none"
             autoCorrect={false}
+            autoComplete="email"
+            textContentType="emailAddress"
             value={email}
-            onChangeText={(v) => { setEmail(v); setError(null); }}
+            error={errores.correo}
+            onChangeText={(v) => { setEmail(v); setErrores({}); }}
           />
 
-          <Text style={styles.label}>Contraseña</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Mín. 8 chars, 1 mayúscula, 1 número"
-            placeholderTextColor="#9aa0a6"
+          <Campo
+            rotulo="Contraseña"
+            obligatorio
+            placeholder="Elige una contraseña"
             secureTextEntry
+            autoComplete="new-password"
+            textContentType="newPassword"
             value={password}
-            onChangeText={(v) => { setPassword(v); setError(null); }}
+            error={errores.clave}
+            onChangeText={(v) => { setPassword(v); setErrores({}); }}
           />
 
-          <Text style={styles.label}>Confirmar contraseña</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Repite tu contraseña"
-            placeholderTextColor="#9aa0a6"
+          <View style={s.reglas}>
+            {REGLAS.map((r, i) => {
+              const ok = r.cumple(password);
+              return (
+                <View key={r.texto}>
+                  {i > 0 && <Regla />}
+                  <View style={s.regla}>
+                    <Feather
+                      name={ok ? 'check' : 'minus'}
+                      size={14}
+                      color={ok ? color.tinta : color.tintaMedia}
+                    />
+                    <Text
+                      style={[
+                        ok ? texto.cuerpoFuerte : texto.cuerpo,
+                        { color: ok ? color.tinta : color.tintaMedia, marginLeft: espacio.sm, fontSize: 14 },
+                      ]}
+                    >
+                      {r.texto}
+                    </Text>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+
+          <Campo
+            rotulo="Repetir contraseña"
+            obligatorio
+            placeholder="La misma contraseña"
             secureTextEntry
+            autoComplete="new-password"
+            textContentType="newPassword"
             value={confirmPassword}
-            onChangeText={(v) => { setConfirmPassword(v); setError(null); }}
+            error={errores.confirmacion}
+            onChangeText={(v) => { setConfirmPassword(v); setErrores({}); }}
           />
 
-          {error && <Text style={styles.error}>{error}</Text>}
+          {errores.general ? (
+            <View style={s.error}>
+              <Aviso texto={errores.general} tipo="error" />
+            </View>
+          ) : null}
 
-          <TouchableOpacity
-            style={[styles.primaryButton, loading && styles.buttonDisabled]}
-            onPress={handleSubmit}
-            disabled={loading}
-          >
-            <Text style={styles.primaryButtonText}>
-              {loading ? 'Registrando...' : 'Solicitar acceso'}
-            </Text>
-          </TouchableOpacity>
+          <Boton onPress={handleSubmit} cargando={loading} icono="arrow-right">
+            Enviar solicitud
+          </Boton>
 
-          <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-            <Text style={styles.switchText}>¿Ya tienes cuenta? Inicia sesión</Text>
-          </TouchableOpacity>
+          <Enlace onPress={() => navigation.navigate('Login')}>
+            Ya tengo cuenta · iniciar sesión
+          </Enlace>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0f172a',
+const s = StyleSheet.create({
+  pantalla: { flex: 1, backgroundColor: color.tabla },
+  scroll: { flexGrow: 1, paddingHorizontal: espacio.base },
+  titulo: { color: color.tinta, marginTop: espacio.sm },
+  subtitulo: { color: color.tintaMedia, marginTop: espacio.md, maxWidth: 300 },
+  formulario: { paddingTop: espacio.xxl },
+  reglas: {
+    backgroundColor: color.lamina,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: color.regla,
+    paddingHorizontal: espacio.md,
+    marginTop: -espacio.sm,
+    marginBottom: espacio.lg,
   },
-  scroll: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-    paddingVertical: 40,
-  },
-  card: {
-    width: '100%',
-    maxWidth: 420,
-    backgroundColor: '#111827',
-    borderRadius: 20,
-    padding: 24,
-  },
-  title: { fontSize: 28, fontWeight: '700', color: '#f8fafc', marginBottom: 8 },
-  subtitle: { fontSize: 14, color: '#cbd5e1', marginBottom: 24 },
-  label: { fontSize: 13, color: '#94a3b8', marginBottom: 6, fontWeight: '600' },
-  input: {
-    backgroundColor: '#1f2937',
-    borderColor: '#374151',
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    marginBottom: 16,
-    color: '#f8fafc',
-    fontSize: 16,
-  },
-  primaryButton: {
-    backgroundColor: '#3b82f6',
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 4,
-    marginBottom: 16,
-  },
-  buttonDisabled: { opacity: 0.6 },
-  primaryButtonText: { color: '#fff', fontWeight: '700', fontSize: 16 },
-  switchText: { textAlign: 'center', color: '#93c5fd', fontWeight: '600' },
-  error: {
-    color: '#fca5a5',
-    marginBottom: 12,
-    fontSize: 14,
-    backgroundColor: '#450a0a',
-    borderRadius: 8,
-    padding: 10,
-  },
-  // ── Confirmación ──────────────────────────
-  iconWrapper: {
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  iconText: { fontSize: 52 },
-  emailHighlight: {
-    color: '#60a5fa',
-    fontSize: 15,
-    fontWeight: '700',
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  infoBox: {
-    backgroundColor: '#1e3a5f',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 24,
-    borderLeftWidth: 4,
-    borderLeftColor: '#3b82f6',
-  },
-  infoText: { color: '#bfdbfe', fontSize: 14, lineHeight: 22 },
+  regla: { flexDirection: 'row', alignItems: 'center', paddingVertical: espacio.md },
+  error: { marginBottom: espacio.base },
+  // Confirmación
+  confirmacion: { paddingHorizontal: espacio.base, justifyContent: 'space-between', paddingVertical: espacio.xxxl },
+  confirmacionTitulo: { color: color.tinta, marginTop: espacio.sm },
+  reglaGruesa: { height: 3, backgroundColor: color.tinta, marginTop: espacio.lg, marginBottom: espacio.lg, width: 56 },
+  confirmacionCuerpo: { color: color.tintaMedia, maxWidth: 340 },
 });

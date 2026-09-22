@@ -1,21 +1,34 @@
+import { Feather } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   FlatList,
   KeyboardAvoidingView,
   Modal,
   Platform,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ProductoRow } from '../../types';
+import {
+  Aviso,
+  Boton,
+  Cabecera,
+  Campo,
+  Cargando,
+  FilaRegistro,
+  Marca,
+  Vacio,
+  useMenosMovimiento,
+} from '../../ui/componentes';
+import { CIFRAS_TABULARES, color, dinero, espacio, texto } from '../../ui/tema';
 
 type FormProducto = {
   nombre: string;
@@ -26,8 +39,13 @@ type FormProducto = {
 
 const FORM_VACIO: FormProducto = { nombre: '', descripcion: '', valorUnitario: '', stock: '' };
 
+/** Bajo este número el stock se marca con palabra, no solo con color. */
+const STOCK_BAJO = 5;
+
 export default function Inventario() {
   const db = useSQLiteContext();
+  const inset = useSafeAreaInsets();
+  const menosMovimiento = useMenosMovimiento();
   const [productos, setProductos] = useState<ProductoRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -47,21 +65,27 @@ export default function Inventario() {
     setRefreshing(false);
   }, [db]);
 
-  useEffect(() => { cargarProductos(); }, [cargarProductos]);
+  // Las pestañas no se desmontan: sin esto la pantalla se queda con los datos
+  // que leyó la primera vez. Se recarga cada vez que vuelve al frente.
+  useFocusEffect(useCallback(() => { cargarProductos(); }, [cargarProductos]));
+
+  const temporizador = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (temporizador.current) clearTimeout(temporizador.current); }, []);
 
   const mostrarMensaje = (texto: string, tipo: 'ok' | 'error') => {
     setMensaje({ texto, tipo });
-    setTimeout(() => setMensaje(null), 3000);
+    if (temporizador.current) clearTimeout(temporizador.current);
+    temporizador.current = setTimeout(() => setMensaje(null), 4500);
   };
 
   // ── Validación ──────────────────────────────────────────────────────────────
   const validar = (): boolean => {
     const e: Partial<FormProducto> = {};
-    if (!form.nombre.trim()) e.nombre = 'El nombre es obligatorio.';
+    if (!form.nombre.trim()) e.nombre = 'Escribe el nombre con el que lo buscarás.';
     const valor = parseFloat(form.valorUnitario);
-    if (isNaN(valor) || valor <= 0) e.valorUnitario = 'Debe ser un número positivo.';
+    if (isNaN(valor) || valor <= 0) e.valorUnitario = 'Debe ser un número mayor que cero.';
     const stock = parseInt(form.stock, 10);
-    if (isNaN(stock) || stock < 0) e.stock = 'Debe ser un entero ≥ 0.';
+    if (isNaN(stock) || stock < 0) e.stock = 'Debe ser un entero de 0 en adelante.';
     setErrores(e);
     return Object.keys(e).length === 0;
   };
@@ -103,7 +127,7 @@ export default function Inventario() {
           stock,
           editando.Id,
         );
-        mostrarMensaje('✅ Producto actualizado', 'ok');
+        mostrarMensaje(`${form.nombre.trim()} actualizado`, 'ok');
       } else {
         await db.runAsync(
           'INSERT INTO PRODUCTOS (Nombre, Descripcion, ValorUnitario, Stock) VALUES (?,?,?,?)',
@@ -112,36 +136,30 @@ export default function Inventario() {
           valor,
           stock,
         );
-        mostrarMensaje('✅ Producto creado', 'ok');
+        mostrarMensaje(`${form.nombre.trim()} agregado al inventario`, 'ok');
       }
 
       setModalVisible(false);
       await cargarProductos();
     } catch {
-      mostrarMensaje('❌ Error al guardar el producto', 'error');
+      mostrarMensaje('No se pudo guardar el producto. Inténtalo otra vez.', 'error');
     } finally {
       setGuardando(false);
     }
   };
 
-  if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#3b82f6" />
-      </View>
-    );
-  }
+  if (loading) return <Cargando />;
+
+  const totalUnidades = productos.reduce((n, p) => n + p.Stock, 0);
 
   return (
-    <View style={styles.container}>
-      {/* Flash */}
+    <View style={s.pantalla}>
       {mensaje && (
-        <View style={[styles.flash, mensaje.tipo === 'ok' ? styles.flashOk : styles.flashError]}>
-          <Text style={styles.flashText}>{mensaje.texto}</Text>
+        <View style={s.aviso}>
+          <Aviso texto={mensaje.texto} tipo={mensaje.tipo} />
         </View>
       )}
 
-      {/* Lista */}
       <FlatList
         data={productos}
         keyExtractor={(item) => String(item.Id)}
@@ -149,209 +167,183 @@ export default function Inventario() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => { setRefreshing(true); cargarProductos(); }}
-            tintColor="#3b82f6"
+            tintColor={color.tinta}
+            colors={[color.tinta]}
+          />
+        }
+        ListHeaderComponent={
+          <Cabecera
+            rotulo="Inventario"
+            titulo={`${productos.length} ${productos.length === 1 ? 'producto' : 'productos'}`}
+            apoyo={
+              productos.length > 0
+                ? `${totalUnidades} unidades en total · toca uno para editarlo`
+                : undefined
+            }
           />
         }
         ListEmptyComponent={
-          <View style={styles.emptyBox}>
-            <Text style={styles.emptyIcon}>📦</Text>
-            <Text style={styles.emptyText}>No hay productos. Agrega el primero.</Text>
+          <View style={s.hojaVacia}>
+            <Vacio
+              icono="package"
+              titulo="Inventario vacío"
+              cuerpo="Agrega el primer producto con su precio y sus existencias. Los clientes solo verán los que tengan stock."
+            />
           </View>
         }
-        renderItem={({ item }) => (
-          <TouchableOpacity style={styles.card} onPress={() => abrirEditar(item)} activeOpacity={0.8}>
-            <View style={styles.cardTop}>
-              <Text style={styles.cardNombre}>{item.Nombre}</Text>
-              <View style={[styles.stockBadge, item.Stock === 0 && styles.stockAgotado]}>
-                <Text style={styles.stockText}>Stock: {item.Stock}</Text>
-              </View>
-            </View>
-            {item.Descripcion ? (
-              <Text style={styles.cardDescripcion} numberOfLines={2}>{item.Descripcion}</Text>
-            ) : null}
-            <Text style={styles.cardPrecio}>
-              ${item.ValorUnitario.toFixed(2)} <Text style={styles.cardHint}>· toca para editar</Text>
-            </Text>
-          </TouchableOpacity>
-        )}
-        contentContainerStyle={styles.list}
+        renderItem={({ item, index }) => {
+          const agotado = item.Stock === 0;
+          const bajo = !agotado && item.Stock <= STOCK_BAJO;
+          return (
+            <FilaRegistro
+              titulo={item.Nombre}
+              lineasTitulo={2}
+              apoyo={item.Descripcion}
+              ultima={index === productos.length - 1}
+              onPress={() => abrirEditar(item)}
+              etiqueta={`Editar ${item.Nombre}`}
+              cifra={
+                <Text style={[texto.gigante, s.precio]} numberOfLines={1} adjustsFontSizeToFit>
+                  {dinero(item.ValorUnitario)}
+                </Text>
+              }
+              marca={
+                agotado ? (
+                  <Marca tono="alerta">Agotado</Marca>
+                ) : bajo ? (
+                  <Marca tono="espera">Quedan {item.Stock}</Marca>
+                ) : (
+                  <Marca>{item.Stock} en stock</Marca>
+                )
+              }
+              derecha={<Feather name="edit-2" size={16} color={color.tintaMedia} />}
+            />
+          );
+        }}
+        contentContainerStyle={s.lista}
       />
 
-      {/* Botón agregar */}
-      <TouchableOpacity style={styles.fab} onPress={abrirNuevo}>
-        <Text style={styles.fabText}>＋ Nuevo producto</Text>
-      </TouchableOpacity>
+      {/* Una acción primaria, siempre en el mismo sitio */}
+      <View style={s.pie}>
+        <Boton onPress={abrirNuevo} icono="plus">
+          Nuevo producto
+        </Boton>
+      </View>
 
-      {/* ── Modal formulario ── */}
-      <Modal visible={modalVisible} animationType="slide" transparent>
-        <KeyboardAvoidingView
-          style={styles.modalOverlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
-          <View style={styles.modalCard}>
-            <ScrollView keyboardShouldPersistTaps="handled">
-              <Text style={styles.modalTitle}>
-                {editando ? '✏️ Editar producto' : '➕ Nuevo producto'}
-              </Text>
+      {/* ── Hoja de edición ── */}
+      <Modal
+        visible={modalVisible}
+        animationType={menosMovimiento ? 'none' : 'slide'}
+        transparent
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={s.fondoModal}>
+          <Pressable style={s.cierreTactil} onPress={() => setModalVisible(false)} />
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+            <View style={[s.hojaModal, { paddingBottom: inset.bottom + espacio.lg }]}>
+              <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+                <Text style={[texto.grande, s.tituloModal]} numberOfLines={2}>
+                  {editando ? editando.Nombre : 'Nuevo producto'}
+                </Text>
 
-              <Text style={styles.fieldLabel}>Nombre *</Text>
-              <TextInput
-                style={[styles.input, errores.nombre && styles.inputError]}
-                placeholder="Nombre del producto"
-                placeholderTextColor="#9aa0a6"
-                value={form.nombre}
-                onChangeText={(v) => { setForm((f) => ({ ...f, nombre: v })); setErrores((e) => ({ ...e, nombre: undefined })); }}
-              />
-              {errores.nombre && <Text style={styles.fieldError}>{errores.nombre}</Text>}
+                <Campo
+                  rotulo="Nombre"
+                  obligatorio
+                  placeholder="Cómo lo llamas en el mostrador"
+                  value={form.nombre}
+                  error={errores.nombre}
+                  onChangeText={(v) => { setForm((f) => ({ ...f, nombre: v })); setErrores((e) => ({ ...e, nombre: undefined })); }}
+                />
 
-              <Text style={styles.fieldLabel}>Descripción</Text>
-              <TextInput
-                style={[styles.input, styles.inputMultiline]}
-                placeholder="Descripción opcional"
-                placeholderTextColor="#9aa0a6"
-                multiline
-                numberOfLines={3}
-                value={form.descripcion}
-                onChangeText={(v) => setForm((f) => ({ ...f, descripcion: v }))}
-              />
+                <Campo
+                  rotulo="Descripción"
+                  placeholder="Opcional: presentación, marca, tamaño"
+                  multiline
+                  value={form.descripcion}
+                  onChangeText={(v) => setForm((f) => ({ ...f, descripcion: v }))}
+                />
 
-              <Text style={styles.fieldLabel}>Valor unitario *</Text>
-              <TextInput
-                style={[styles.input, errores.valorUnitario && styles.inputError]}
-                placeholder="0.00"
-                placeholderTextColor="#9aa0a6"
-                keyboardType="decimal-pad"
-                value={form.valorUnitario}
-                onChangeText={(v) => { setForm((f) => ({ ...f, valorUnitario: v })); setErrores((e) => ({ ...e, valorUnitario: undefined })); }}
-              />
-              {errores.valorUnitario && <Text style={styles.fieldError}>{errores.valorUnitario}</Text>}
+                <View style={s.cifras}>
+                  <View style={s.cifra}>
+                    <Campo
+                      rotulo="Precio"
+                      obligatorio
+                      placeholder="0.00"
+                      keyboardType="decimal-pad"
+                      value={form.valorUnitario}
+                      error={errores.valorUnitario}
+                      onChangeText={(v) => { setForm((f) => ({ ...f, valorUnitario: v })); setErrores((e) => ({ ...e, valorUnitario: undefined })); }}
+                    />
+                  </View>
+                  <View style={s.cifra}>
+                    <Campo
+                      rotulo="Stock"
+                      obligatorio
+                      placeholder="0"
+                      keyboardType="number-pad"
+                      value={form.stock}
+                      error={errores.stock}
+                      onChangeText={(v) => { setForm((f) => ({ ...f, stock: v })); setErrores((e) => ({ ...e, stock: undefined })); }}
+                    />
+                  </View>
+                </View>
 
-              <Text style={styles.fieldLabel}>Stock *</Text>
-              <TextInput
-                style={[styles.input, errores.stock && styles.inputError]}
-                placeholder="0"
-                placeholderTextColor="#9aa0a6"
-                keyboardType="number-pad"
-                value={form.stock}
-                onChangeText={(v) => { setForm((f) => ({ ...f, stock: v })); setErrores((e) => ({ ...e, stock: undefined })); }}
-              />
-              {errores.stock && <Text style={styles.fieldError}>{errores.stock}</Text>}
-
-              <View style={styles.modalButtons}>
-                <TouchableOpacity
-                  style={styles.cancelBtn}
-                  onPress={() => setModalVisible(false)}
-                  disabled={guardando}
-                >
-                  <Text style={styles.cancelBtnText}>Cancelar</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.saveBtn, guardando && styles.btnDisabled]}
-                  onPress={guardar}
-                  disabled={guardando}
-                >
-                  {guardando
-                    ? <ActivityIndicator color="#fff" />
-                    : <Text style={styles.saveBtnText}>{editando ? 'Actualizar' : 'Crear'}</Text>
-                  }
-                </TouchableOpacity>
-              </View>
-            </ScrollView>
-          </View>
-        </KeyboardAvoidingView>
+                <View style={s.botonesModal}>
+                  <View style={s.botonModal}>
+                    <Boton tipo="contorno" onPress={() => setModalVisible(false)} desactivado={guardando}>
+                      Cancelar
+                    </Boton>
+                  </View>
+                  <View style={s.botonModal}>
+                    <Boton onPress={guardar} cargando={guardando} icono="check">
+                      {editando ? 'Guardar' : 'Crear'}
+                    </Boton>
+                  </View>
+                </View>
+              </ScrollView>
+            </View>
+          </KeyboardAvoidingView>
+        </View>
       </Modal>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f172a' },
-  center: { flex: 1, backgroundColor: '#0f172a', justifyContent: 'center', alignItems: 'center' },
-  list: { padding: 16, paddingBottom: 100 },
-  card: {
-    backgroundColor: '#111827',
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#1f2937',
+const s = StyleSheet.create({
+  pantalla: { flex: 1, backgroundColor: color.tabla },
+  lista: { paddingBottom: 96 },
+  aviso: { paddingHorizontal: espacio.base, paddingTop: espacio.md },
+  precio: { color: color.tinta, ...CIFRAS_TABULARES },
+  hojaVacia: {
+    backgroundColor: color.lamina,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: color.regla,
   },
-  cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
-  cardNombre: { color: '#f8fafc', fontSize: 16, fontWeight: '700', flex: 1, marginRight: 8 },
-  cardDescripcion: { color: '#94a3b8', fontSize: 14, marginBottom: 8 },
-  cardPrecio: { color: '#60a5fa', fontSize: 15, fontWeight: '700' },
-  cardHint: { color: '#475569', fontSize: 12, fontWeight: '400' },
-  stockBadge: {
-    backgroundColor: '#14532d',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  stockAgotado: { backgroundColor: '#450a0a' },
-  stockText: { color: '#86efac', fontSize: 13, fontWeight: '700' },
-  fab: {
+  pie: {
     position: 'absolute',
-    bottom: 20,
-    left: 20,
-    right: 20,
-    backgroundColor: '#3b82f6',
-    borderRadius: 14,
-    paddingVertical: 15,
-    alignItems: 'center',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    padding: espacio.base,
+    backgroundColor: color.tabla,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: color.regla,
   },
-  fabText: { color: '#fff', fontWeight: '700', fontSize: 16 },
-  emptyBox: { alignItems: 'center', paddingVertical: 60 },
-  emptyIcon: { fontSize: 48, marginBottom: 12 },
-  emptyText: { color: '#475569', fontSize: 15 },
-  // Modal
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    justifyContent: 'flex-end',
+  // Hoja de edición
+  fondoModal: { flex: 1, backgroundColor: 'rgba(21,20,15,0.55)', justifyContent: 'flex-end' },
+  cierreTactil: { flex: 1 },
+  hojaModal: {
+    backgroundColor: color.tabla,
+    borderTopWidth: 3,
+    borderTopColor: color.tinta,
+    paddingHorizontal: espacio.base,
+    paddingTop: espacio.lg,
+    maxHeight: '88%',
   },
-  modalCard: {
-    backgroundColor: '#111827',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
-    maxHeight: '90%',
-  },
-  modalTitle: { color: '#f8fafc', fontSize: 20, fontWeight: '700', marginBottom: 20 },
-  fieldLabel: { color: '#94a3b8', fontSize: 13, fontWeight: '600', marginBottom: 6 },
-  input: {
-    backgroundColor: '#1f2937',
-    borderColor: '#374151',
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    marginBottom: 4,
-    color: '#f8fafc',
-    fontSize: 16,
-  },
-  inputMultiline: { height: 80, textAlignVertical: 'top' },
-  inputError: { borderColor: '#ef4444' },
-  fieldError: { color: '#fca5a5', fontSize: 13, marginBottom: 12 },
-  modalButtons: { flexDirection: 'row', gap: 12, marginTop: 20, marginBottom: 8 },
-  cancelBtn: {
-    flex: 1,
-    backgroundColor: '#1f2937',
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  cancelBtnText: { color: '#94a3b8', fontWeight: '700', fontSize: 15 },
-  saveBtn: {
-    flex: 1,
-    backgroundColor: '#3b82f6',
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  saveBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  btnDisabled: { opacity: 0.5 },
-  flash: { margin: 16, marginBottom: 0, padding: 12, borderRadius: 10 },
-  flashOk: { backgroundColor: '#14532d' },
-  flashError: { backgroundColor: '#450a0a' },
-  flashText: { color: '#f8fafc', fontWeight: '600', textAlign: 'center' },
+  tituloModal: { color: color.tinta, marginTop: espacio.sm, marginBottom: espacio.xl },
+  cifras: { flexDirection: 'row', gap: espacio.md },
+  cifra: { flex: 1 },
+  botonesModal: { flexDirection: 'row', gap: espacio.md, marginTop: espacio.sm },
+  botonModal: { flex: 1 },
 });

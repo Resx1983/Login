@@ -1,20 +1,31 @@
+import { useFocusEffect } from '@react-navigation/native';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useCallback, useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { LoginRow } from '../../types';
+import {
+  Aviso,
+  Boton,
+  Cabecera,
+  Cargando,
+  FilaRegistro,
+  Hoja,
+  Marca,
+  Placa,
+  Selector,
+  Vacio,
+} from '../../ui/componentes';
+import { color, espacio, texto } from '../../ui/tema';
 
 type UsuarioPendiente = Pick<LoginRow, 'Id' | 'Correo' | 'Estado'> & { rolSeleccionado: 'admin' | 'cliente' };
 
 type UsuarioActivo = Pick<LoginRow, 'Id' | 'Correo' | 'Rol' | 'Estado'>;
+
+const ROLES = [
+  { valor: 'cliente' as const, etiqueta: 'Cliente' },
+  { valor: 'admin' as const, etiqueta: 'Admin' },
+];
 
 export default function AdminCuentas() {
   const db = useSQLiteContext();
@@ -38,11 +49,17 @@ export default function AdminCuentas() {
     setRefreshing(false);
   }, [db]);
 
-  useEffect(() => { cargarDatos(); }, [cargarDatos]);
+  // Las pestañas no se desmontan: sin esto la pantalla se queda con los datos
+  // que leyó la primera vez. Se recarga cada vez que vuelve al frente.
+  useFocusEffect(useCallback(() => { cargarDatos(); }, [cargarDatos]));
+
+  const temporizador = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (temporizador.current) clearTimeout(temporizador.current); }, []);
 
   const mostrarMensaje = (texto: string, tipo: 'ok' | 'error') => {
     setMensaje({ texto, tipo });
-    setTimeout(() => setMensaje(null), 3000);
+    if (temporizador.current) clearTimeout(temporizador.current);
+    temporizador.current = setTimeout(() => setMensaje(null), 4500);
   };
 
   const activarCuenta = async (usuario: UsuarioPendiente) => {
@@ -53,10 +70,10 @@ export default function AdminCuentas() {
         usuario.rolSeleccionado,
         usuario.Id,
       );
-      mostrarMensaje(`✅ Cuenta activada como ${usuario.rolSeleccionado}`, 'ok');
+      mostrarMensaje(`${usuario.Correo} entra como ${usuario.rolSeleccionado}`, 'ok');
       await cargarDatos();
     } catch {
-      mostrarMensaje('❌ Error al activar la cuenta', 'error');
+      mostrarMensaje('No se pudo activar la cuenta. Inténtalo otra vez.', 'error');
     } finally {
       setProcesando(null);
     }
@@ -68,20 +85,13 @@ export default function AdminCuentas() {
     );
   };
 
-  if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#3b82f6" />
-      </View>
-    );
-  }
+  if (loading) return <Cargando />;
 
   return (
-    <View style={styles.container}>
-      {/* Mensaje flash */}
+    <View style={s.pantalla}>
       {mensaje && (
-        <View style={[styles.flash, mensaje.tipo === 'ok' ? styles.flashOk : styles.flashError]}>
-          <Text style={styles.flashText}>{mensaje.texto}</Text>
+        <View style={s.aviso}>
+          <Aviso texto={mensaje.texto} tipo={mensaje.tipo} />
         </View>
       )}
 
@@ -90,169 +100,121 @@ export default function AdminCuentas() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => { setRefreshing(true); cargarDatos(); }}
-            tintColor="#3b82f6"
+            tintColor={color.tinta}
+            colors={[color.tinta]}
           />
         }
         ListHeaderComponent={
           <>
-            {/* ── Solicitudes pendientes ── */}
-            <Text style={styles.sectionTitle}>⏳ Solicitudes pendientes</Text>
-            {pendientes.length === 0 && (
-              <View style={styles.emptyBox}>
-                <Text style={styles.emptyText}>No hay solicitudes pendientes</Text>
-              </View>
-            )}
-            {pendientes.map((u) => (
-              <View key={u.Id} style={styles.card}>
-                <View style={styles.cardHeader}>
-                  <Text style={styles.cardEmail}>{u.Correo}</Text>
-                  <View style={styles.badgePendiente}>
-                    <Text style={styles.badgeText}>Pendiente</Text>
+            <Cabecera
+              rotulo="Solicitudes en espera"
+              titulo={String(pendientes.length).padStart(2, '0')}
+              apoyo={
+                pendientes.length === 0
+                  ? 'Nadie espera aprobación ahora mismo.'
+                  : 'Cada una necesita un rol antes de poder entrar.'
+              }
+            />
+
+            {pendientes.length === 0 ? (
+              <Hoja>
+                <Vacio
+                  icono="user-check"
+                  titulo="Bandeja al día"
+                  cuerpo="Cuando alguien solicite acceso desde la pantalla de registro, aparecerá aquí para que le asignes un rol."
+                />
+              </Hoja>
+            ) : (
+              pendientes.map((u) => (
+                <View key={u.Id} style={s.solicitud}>
+                  <View style={s.solicitudEncabezado}>
+                    <Text style={[texto.cuerpoFuerte, s.correo]} numberOfLines={1}>
+                      {u.Correo}
+                    </Text>
+                    <Marca tono="espera">En espera</Marca>
+                  </View>
+
+                  <Placa style={s.rotuloRol}>Entra como</Placa>
+                  <Selector
+                    opciones={ROLES}
+                    valor={u.rolSeleccionado}
+                    onCambio={(rol) => cambiarRolPendiente(u.Id, rol)}
+                  />
+
+                  {/* Acción irreversible: aislada con espacio propio. */}
+                  <View style={s.accion}>
+                    <Text style={[texto.menor, s.consecuencia]}>
+                      {u.rolSeleccionado === 'admin'
+                        ? 'Como admin podrá aprobar cuentas y editar el inventario.'
+                        : 'Como cliente podrá comprar, pero no editar el inventario.'}
+                    </Text>
+                    <Boton
+                      tipo="contorno"
+                      onPress={() => activarCuenta(u)}
+                      cargando={procesando === u.Id}
+                      icono="check"
+                    >
+                      Activar cuenta
+                    </Boton>
                   </View>
                 </View>
-
-                {/* Selector de rol */}
-                <Text style={styles.rolLabel}>Asignar rol:</Text>
-                <View style={styles.rolRow}>
-                  <TouchableOpacity
-                    style={[
-                      styles.rolBtn,
-                      u.rolSeleccionado === 'cliente' && styles.rolBtnActive,
-                    ]}
-                    onPress={() => cambiarRolPendiente(u.Id, 'cliente')}
-                  >
-                    <Text style={[styles.rolBtnText, u.rolSeleccionado === 'cliente' && styles.rolBtnTextActive]}>
-                      Cliente
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.rolBtn,
-                      u.rolSeleccionado === 'admin' && styles.rolBtnActive,
-                    ]}
-                    onPress={() => cambiarRolPendiente(u.Id, 'admin')}
-                  >
-                    <Text style={[styles.rolBtnText, u.rolSeleccionado === 'admin' && styles.rolBtnTextActive]}>
-                      Admin
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-
-                <TouchableOpacity
-                  style={[styles.activarBtn, procesando === u.Id && styles.btnDisabled]}
-                  onPress={() => activarCuenta(u)}
-                  disabled={procesando === u.Id}
-                >
-                  {procesando === u.Id
-                    ? <ActivityIndicator color="#fff" />
-                    : <Text style={styles.activarBtnText}>Activar cuenta</Text>
-                  }
-                </TouchableOpacity>
-              </View>
-            ))}
-
-            {/* ── Usuarios activos ── */}
-            <Text style={[styles.sectionTitle, { marginTop: 24 }]}>✅ Usuarios activos</Text>
-            {activos.length === 0 && (
-              <View style={styles.emptyBox}>
-                <Text style={styles.emptyText}>Aún no hay usuarios activos</Text>
-              </View>
+              ))
             )}
+
+            <View style={s.separador}>
+              <Cabecera
+                rotulo="Cuentas activas"
+                titulo={String(activos.length).padStart(2, '0')}
+                apoyo="Clientes que ya pueden entrar. Los administradores no se listan aquí."
+              />
+            </View>
           </>
         }
         data={activos}
         keyExtractor={(item) => String(item.Id)}
-        renderItem={({ item }) => (
-          <View style={[styles.card, styles.cardActivo]}>
-            <Text style={styles.cardEmail}>{item.Correo}</Text>
-            <View style={[styles.badgePendiente, { backgroundColor: '#14532d' }]}>
-              <Text style={[styles.badgeText, { color: '#86efac' }]}>
-                {item.Rol === 'admin' ? 'Admin' : 'Cliente'}
-              </Text>
-            </View>
-          </View>
+        renderItem={({ item, index }) => (
+          <FilaRegistro
+            titulo={item.Correo}
+            ultima={index === activos.length - 1}
+            derecha={<Marca>{item.Rol === 'admin' ? 'Admin' : 'Cliente'}</Marca>}
+          />
         )}
-        contentContainerStyle={styles.list}
+        ListEmptyComponent={
+          <Hoja>
+            <Vacio
+              icono="users"
+              titulo="Todavía nadie"
+              cuerpo="Al activar una solicitud, la cuenta aparecerá en esta lista."
+            />
+          </Hoja>
+        }
+        contentContainerStyle={s.lista}
       />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f172a' },
-  center: { flex: 1, backgroundColor: '#0f172a', justifyContent: 'center', alignItems: 'center' },
-  list: { padding: 16, paddingBottom: 40 },
-  sectionTitle: {
-    color: '#94a3b8',
-    fontSize: 13,
-    fontWeight: '700',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    marginBottom: 12,
+const s = StyleSheet.create({
+  pantalla: { flex: 1, backgroundColor: color.tabla },
+  lista: { paddingBottom: espacio.xxxl },
+  aviso: { paddingHorizontal: espacio.base, paddingTop: espacio.md },
+  solicitud: {
+    backgroundColor: color.lamina,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: color.regla,
+    padding: espacio.base,
+    marginBottom: espacio.md,
   },
-  card: {
-    backgroundColor: '#111827',
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#1f2937',
-  },
-  cardActivo: {
+  solicitudEncabezado: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 14,
+    marginBottom: espacio.lg,
   },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  cardEmail: { color: '#f8fafc', fontSize: 15, fontWeight: '600', flex: 1, marginRight: 8 },
-  badgePendiente: {
-    backgroundColor: '#431407',
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  badgeText: { color: '#fdba74', fontSize: 12, fontWeight: '700' },
-  rolLabel: { color: '#94a3b8', fontSize: 13, marginBottom: 8 },
-  rolRow: { flexDirection: 'row', gap: 10, marginBottom: 14 },
-  rolBtn: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#374151',
-    borderRadius: 10,
-    paddingVertical: 10,
-    alignItems: 'center',
-    backgroundColor: '#1f2937',
-  },
-  rolBtnActive: { borderColor: '#3b82f6', backgroundColor: '#1e3a5f' },
-  rolBtnText: { color: '#64748b', fontWeight: '600' },
-  rolBtnTextActive: { color: '#60a5fa' },
-  activarBtn: {
-    backgroundColor: '#16a34a',
-    borderRadius: 10,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  btnDisabled: { opacity: 0.5 },
-  activarBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  emptyBox: {
-    backgroundColor: '#111827',
-    borderRadius: 12,
-    padding: 20,
-    alignItems: 'center',
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#1f2937',
-    borderStyle: 'dashed',
-  },
-  emptyText: { color: '#475569', fontSize: 14 },
-  flash: {
-    margin: 16,
-    marginBottom: 0,
-    padding: 12,
-    borderRadius: 10,
-  },
-  flashOk: { backgroundColor: '#14532d' },
-  flashError: { backgroundColor: '#450a0a' },
-  flashText: { color: '#f8fafc', fontWeight: '600', textAlign: 'center' },
+  correo: { color: color.tinta, flex: 1, marginRight: espacio.md },
+  rotuloRol: { marginBottom: espacio.sm },
+  accion: { marginTop: espacio.xxl },
+  consecuencia: { color: color.tintaMedia, marginBottom: espacio.md },
+  separador: { marginTop: espacio.xl },
 });

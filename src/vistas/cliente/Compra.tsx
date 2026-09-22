@@ -1,18 +1,14 @@
+import { Feather } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useCallback, useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { useCallback, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useAuth } from '../../context/AuthContext';
 import { useCarrito } from '../../context/CarritoContext';
 import { ClienteRow } from '../../types';
+import { Boton, Cargando, FilaRegistro, Placa, Vacio } from '../../ui/componentes';
+import { CIFRAS_TABULARES, TOQUE_MINIMO, color, dinero, espacio, texto } from '../../ui/tema';
 
 type CompraEstado = 'carrito' | 'confirmando' | 'exitosa' | 'error';
 
@@ -36,7 +32,9 @@ export default function Compra() {
     setCargandoPerfil(false);
   }, [db, usuario]);
 
-  useEffect(() => { cargarPerfil(); }, [cargarPerfil]);
+  // Las pestañas no se desmontan: sin esto la pantalla se queda con los datos
+  // que leyó la primera vez. Se recarga cada vez que vuelve al frente.
+  useFocusEffect(useCallback(() => { cargarPerfil(); }, [cargarPerfil]));
 
   const totalCompra = items.reduce(
     (sum, i) => sum + i.producto.ValorUnitario * i.cantidad,
@@ -58,7 +56,7 @@ export default function Compra() {
           );
           if (!p || p.Stock < item.cantidad) {
             throw new Error(
-              `Stock insuficiente para "${item.producto.Nombre}". Disponible: ${p?.Stock ?? 0}`,
+              `Ya no queda suficiente "${item.producto.Nombre}". Disponible ahora: ${p?.Stock ?? 0}.`,
             );
           }
         }
@@ -94,70 +92,66 @@ export default function Compra() {
       limpiarCarrito();
       setEstado('exitosa');
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Error al procesar la compra.';
+      const msg = err instanceof Error ? err.message : 'No se pudo registrar la compra.';
       setMensajeError(msg);
       setEstado('error');
     }
   };
 
-  // ── Loading perfil ───────────────────────────────────────────────────────
-  if (cargandoPerfil) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#3b82f6" />
-      </View>
-    );
-  }
+  if (cargandoPerfil) return <Cargando />;
 
   // ── Guard: perfil incompleto ─────────────────────────────────────────────
   if (!cliente) {
     return (
-      <View style={styles.center}>
-        <View style={styles.guardBox}>
-          <Text style={styles.guardIcon}>⚠️</Text>
-          <Text style={styles.guardTitle}>Perfil incompleto</Text>
-          <Text style={styles.guardText}>
-            Debes completar tu perfil en la pestaña "Mi Perfil" antes de poder realizar compras.
-          </Text>
-        </View>
+      <View style={s.hueco}>
+        <Vacio
+          icono="user"
+          titulo="Falta tu perfil"
+          cuerpo="Abre la pestaña Perfil y guarda tu nombre y apellido. Una compra se registra siempre a nombre de alguien."
+        />
       </View>
     );
   }
 
-  // ── Guard: sin productos disponibles en el sistema ───────────────────────
-  // (validado en la pantalla de Productos al agregar)
-
-  // ── Pantalla: compra exitosa ─────────────────────────────────────────────
+  // ── Compra registrada ────────────────────────────────────────────────────
   if (estado === 'exitosa') {
     return (
-      <View style={styles.center}>
-        <View style={styles.successBox}>
-          <Text style={styles.successIcon}>🎉</Text>
-          <Text style={styles.successTitle}>¡Compra realizada!</Text>
-          <Text style={styles.successSub}>Pedido #{idCompraGenerada}</Text>
-          <Text style={styles.successText}>
-            Tu pedido ha sido registrado correctamente. El inventario fue actualizado.
+      <View style={s.resultado}>
+        <View>
+          <Placa>Compra registrada</Placa>
+          <Text style={[texto.mega, s.resultadoCifra]}>
+            PEDIDO{'\n'}#{idCompraGenerada}
           </Text>
-          <TouchableOpacity style={styles.newBtn} onPress={() => setEstado('carrito')}>
-            <Text style={styles.newBtnText}>Nueva compra</Text>
-          </TouchableOpacity>
+          <View style={s.reglaFlash} />
+          <Text style={[texto.cuerpo, s.resultadoCuerpo]}>
+            Quedó guardada a nombre de {cliente.Nombre} {cliente.Apellido} y el stock ya se
+            descontó del inventario.
+          </Text>
         </View>
+
+        <Boton onPress={() => setEstado('carrito')} icono="plus">
+          Empezar otra compra
+        </Boton>
       </View>
     );
   }
 
-  // ── Pantalla: error ──────────────────────────────────────────────────────
+  // ── Error ────────────────────────────────────────────────────────────────
   if (estado === 'error') {
     return (
-      <View style={styles.center}>
-        <View style={styles.errorBox}>
-          <Text style={styles.errorIcon}>❌</Text>
-          <Text style={styles.errorTitle}>Error en la compra</Text>
-          <Text style={styles.errorText}>{mensajeError}</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={() => setEstado('carrito')}>
-            <Text style={styles.retryBtnText}>Volver al carrito</Text>
-          </TouchableOpacity>
+      <View style={s.resultado}>
+        <View>
+          <Text style={[texto.gigante, s.resultadoCifra]}>COMPRA{'\n'}RECHAZADA</Text>
+          <View style={s.reglaAlerta} />
+          <Text style={[texto.cuerpo, s.resultadoCuerpo]}>{mensajeError}</Text>
+          <Text style={[texto.menor, s.resultadoNota]}>
+            El inventario quedó intacto. Ajusta las cantidades y vuelve a intentarlo.
+          </Text>
         </View>
+
+        <Boton onPress={() => setEstado('carrito')} tipo="contorno" icono="arrow-left">
+          Volver al pedido
+        </Boton>
       </View>
     );
   }
@@ -165,159 +159,121 @@ export default function Compra() {
   // ── Carrito vacío ────────────────────────────────────────────────────────
   if (items.length === 0) {
     return (
-      <View style={styles.center}>
-        <View style={styles.guardBox}>
-          <Text style={styles.guardIcon}>🛒</Text>
-          <Text style={styles.guardTitle}>Carrito vacío</Text>
-          <Text style={styles.guardText}>
-            Agrega productos desde la pestaña "Productos" para poder continuar.
-          </Text>
-        </View>
+      <View style={s.hueco}>
+        <Vacio
+          icono="shopping-bag"
+          titulo="Pedido vacío"
+          cuerpo="Ve a Productos y usa el contador de cada fila para armar el pedido. El total aparecerá aquí."
+        />
       </View>
     );
   }
 
-  // ── Vista principal: carrito ─────────────────────────────────────────────
-  return (
-    <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scroll}>
-        <Text style={styles.sectionTitle}>🛒 Resumen de compra</Text>
+  // ── Pedido ───────────────────────────────────────────────────────────────
+  const confirmando = estado === 'confirmando';
 
-        {/* Datos del cliente */}
-        <View style={styles.clienteCard}>
-          <Text style={styles.clienteLabel}>Cliente</Text>
-          <Text style={styles.clienteNombre}>{cliente.Nombre} {cliente.Apellido}</Text>
-          <Text style={styles.clienteCorreo}>{cliente.Correo}</Text>
+  return (
+    <View style={s.pantalla}>
+      <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+        {/* La cifra manda */}
+        <View style={s.totalBloque}>
+          <Placa>Total del pedido</Placa>
+          <Text style={[texto.mega, s.total]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5}>
+            {dinero(totalCompra)}
+          </Text>
+          <Text style={[texto.menor, s.totalDetalle]}>
+            {totalItems} {totalItems === 1 ? 'unidad' : 'unidades'} ·{' '}
+            {items.length} {items.length === 1 ? 'producto' : 'productos'} · a nombre de{' '}
+            {cliente.Nombre} {cliente.Apellido}
+          </Text>
         </View>
 
-        {/* Items */}
-        {items.map((item) => (
-          <View key={item.producto.Id} style={styles.itemCard}>
-            <View style={styles.itemTop}>
-              <Text style={styles.itemNombre}>{item.producto.Nombre}</Text>
-              <TouchableOpacity onPress={() => quitarItem(item.producto.Id)}>
-                <Text style={styles.removeText}>✕</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={styles.itemBottom}>
-              <Text style={styles.itemDetalle}>
-                {item.cantidad} × ${item.producto.ValorUnitario.toFixed(2)}
-              </Text>
-              <Text style={styles.itemSubtotal}>
-                ${(item.cantidad * item.producto.ValorUnitario).toFixed(2)}
-              </Text>
-            </View>
-          </View>
-        ))}
-
-        {/* Total */}
-        <View style={styles.totalCard}>
-          <Text style={styles.totalLabel}>Total</Text>
-          <Text style={styles.totalValue}>${totalCompra.toFixed(2)}</Text>
+        <View style={s.detalle}>
+          {items.map((item, i) => (
+            <FilaRegistro
+              key={item.producto.Id}
+              titulo={item.producto.Nombre}
+              ultima={i === items.length - 1}
+              apoyo={`${item.cantidad} × ${dinero(item.producto.ValorUnitario)} · de ${
+                item.producto.Stock
+              } que había al agregarlo`}
+              derecha={
+                <View style={s.lineaDerecha}>
+                  <Text style={[texto.titulo, s.lineaSubtotal]} numberOfLines={1} adjustsFontSizeToFit>
+                    {dinero(item.cantidad * item.producto.ValorUnitario)}
+                  </Text>
+                  <Pressable
+                    onPress={() => quitarItem(item.producto.Id)}
+                    disabled={confirmando}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Quitar ${item.producto.Nombre} del pedido`}
+                    android_ripple={{ color: 'rgba(21,20,15,0.12)' }}
+                    style={({ pressed }) => [s.quitar, pressed && { opacity: 0.5 }]}
+                  >
+                    <Feather name="x" size={17} color={color.tintaMedia} />
+                  </Pressable>
+                </View>
+              }
+            />
+          ))}
         </View>
       </ScrollView>
 
-      {/* Botón confirmar */}
-      <View style={styles.footer}>
-        <TouchableOpacity
-          style={[styles.confirmBtn, estado === 'confirmando' && styles.btnDisabled]}
-          onPress={confirmarCompra}
-          disabled={estado === 'confirmando'}
-        >
-          {estado === 'confirmando'
-            ? <ActivityIndicator color="#fff" />
-            : <Text style={styles.confirmBtnText}>Confirmar compra · ${totalCompra.toFixed(2)}</Text>
-          }
-        </TouchableOpacity>
+      {/* Acción irreversible: aislada, y dice qué va a pasar */}
+      <View style={s.pie}>
+        <Text style={[texto.menor, s.consecuencia]}>
+          Al confirmar se descuenta el stock de estos {items.length}{' '}
+          {items.length === 1 ? 'producto' : 'productos'}. No se puede deshacer.
+        </Text>
+        <Boton onPress={confirmarCompra} cargando={confirmando} icono="check">
+          {`Confirmar · ${dinero(totalCompra)}`}
+        </Boton>
       </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f172a' },
-  center: { flex: 1, backgroundColor: '#0f172a', justifyContent: 'center', alignItems: 'center', padding: 24 },
-  scroll: { padding: 16, paddingBottom: 100 },
-  sectionTitle: {
-    color: '#94a3b8',
-    fontSize: 13,
-    fontWeight: '700',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    marginBottom: 14,
+const s = StyleSheet.create({
+  pantalla: { flex: 1, backgroundColor: color.tabla },
+  scroll: { paddingBottom: espacio.xxxl },
+  hueco: { flex: 1, backgroundColor: color.tabla, justifyContent: 'center' },
+  totalBloque: {
+    backgroundColor: color.lamina,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: color.regla,
+    paddingHorizontal: espacio.base,
+    paddingTop: espacio.xl,
+    paddingBottom: espacio.lg,
   },
-  clienteCard: {
-    backgroundColor: '#111827',
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#1f2937',
+  total: { color: color.tinta, marginTop: espacio.sm, ...CIFRAS_TABULARES },
+  totalDetalle: { color: color.tintaMedia, marginTop: espacio.md },
+  detalle: {
+    marginTop: espacio.lg,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: color.regla,
   },
-  clienteLabel: { color: '#64748b', fontSize: 12, fontWeight: '700', marginBottom: 4 },
-  clienteNombre: { color: '#f8fafc', fontSize: 16, fontWeight: '700' },
-  clienteCorreo: { color: '#94a3b8', fontSize: 13, marginTop: 2 },
-  itemCard: {
-    backgroundColor: '#111827',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: '#1f2937',
+  lineaDerecha: { alignItems: 'flex-end' },
+  lineaSubtotal: { color: color.tinta, ...CIFRAS_TABULARES },
+  quitar: { width: TOQUE_MINIMO, height: TOQUE_MINIMO, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  pie: {
+    padding: espacio.base,
+    backgroundColor: color.tabla,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: color.regla,
   },
-  itemTop: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  itemNombre: { color: '#f8fafc', fontSize: 15, fontWeight: '600', flex: 1 },
-  removeText: { color: '#ef4444', fontSize: 16, paddingHorizontal: 4 },
-  itemBottom: { flexDirection: 'row', justifyContent: 'space-between' },
-  itemDetalle: { color: '#94a3b8', fontSize: 14 },
-  itemSubtotal: { color: '#60a5fa', fontSize: 15, fontWeight: '700' },
-  totalCard: {
-    backgroundColor: '#1e3a5f',
-    borderRadius: 14,
-    padding: 16,
-    flexDirection: 'row',
+  consecuencia: { color: color.tintaMedia, marginBottom: espacio.md },
+  // Resultado
+  resultado: {
+    flex: 1,
+    backgroundColor: color.tabla,
+    paddingHorizontal: espacio.base,
+    paddingVertical: espacio.xxxl,
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 8,
-    borderWidth: 1,
-    borderColor: '#3b82f6',
   },
-  totalLabel: { color: '#bfdbfe', fontSize: 16, fontWeight: '700' },
-  totalValue: { color: '#f8fafc', fontSize: 22, fontWeight: '800' },
-  footer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 16,
-    backgroundColor: '#0f172a',
-    borderTopWidth: 1,
-    borderTopColor: '#1f2937',
-  },
-  confirmBtn: {
-    backgroundColor: '#16a34a',
-    borderRadius: 14,
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  btnDisabled: { opacity: 0.5 },
-  confirmBtnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
-  // Guards y estados
-  guardBox: { backgroundColor: '#111827', borderRadius: 16, padding: 24, alignItems: 'center', width: '100%', borderWidth: 1, borderColor: '#1f2937' },
-  guardIcon: { fontSize: 48, marginBottom: 12 },
-  guardTitle: { color: '#f8fafc', fontSize: 18, fontWeight: '700', marginBottom: 8 },
-  guardText: { color: '#94a3b8', fontSize: 14, textAlign: 'center', lineHeight: 22 },
-  successBox: { backgroundColor: '#14532d', borderRadius: 16, padding: 24, alignItems: 'center', width: '100%' },
-  successIcon: { fontSize: 56, marginBottom: 12 },
-  successTitle: { color: '#f0fdf4', fontSize: 22, fontWeight: '800', marginBottom: 4 },
-  successSub: { color: '#86efac', fontSize: 15, marginBottom: 12 },
-  successText: { color: '#dcfce7', fontSize: 14, textAlign: 'center', lineHeight: 22, marginBottom: 20 },
-  newBtn: { backgroundColor: '#16a34a', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 24 },
-  newBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  errorBox: { backgroundColor: '#450a0a', borderRadius: 16, padding: 24, alignItems: 'center', width: '100%' },
-  errorIcon: { fontSize: 48, marginBottom: 12 },
-  errorTitle: { color: '#fef2f2', fontSize: 20, fontWeight: '700', marginBottom: 8 },
-  errorText: { color: '#fca5a5', fontSize: 14, textAlign: 'center', lineHeight: 22, marginBottom: 20 },
-  retryBtn: { backgroundColor: '#ef4444', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 24 },
-  retryBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  resultadoCifra: { color: color.tinta, marginTop: espacio.sm },
+  reglaFlash: { height: 3, width: 56, backgroundColor: color.tinta, marginVertical: espacio.lg },
+  reglaAlerta: { height: 3, width: 56, backgroundColor: color.alerta, marginVertical: espacio.lg },
+  resultadoCuerpo: { color: color.tintaMedia, maxWidth: 340 },
+  resultadoNota: { color: color.tintaMedia, marginTop: espacio.md },
 });

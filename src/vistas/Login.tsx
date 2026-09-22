@@ -3,139 +3,119 @@ import { useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
-  TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useAuth } from '../context/AuthContext';
-import { LoginRow, RootStackParamList, Rol } from '../types';
+import { RootStackParamList } from '../types';
+import { Aviso, Boton, Campo, Enlace, Placa } from '../ui/componentes';
+import { color, espacio, texto } from '../ui/tema';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'> & {
   onLogin: (email: string, password: string) => Promise<string | null>;
 };
 
 export default function Login({ navigation, onLogin }: Props) {
+  const inset = useSafeAreaInsets();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const { setUsuario } = useAuth();
+  const [cargando, setCargando] = useState(false);
 
   const handleSubmit = async () => {
     setError(null);
-    setLoading(true);
+    setCargando(true);
     const result = await onLogin(email, password);
-    setLoading(false);
+    setCargando(false);
 
     if (result) {
       setError(result);
       return;
     }
 
-    // onLogin ya cargó el usuario en AuthContext — navegar a Home
     navigation.replace('Home', { usuario: { id: 0, email: '', rol: 'cliente' } });
   };
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={s.pantalla}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <View style={styles.card}>
-        <Text style={styles.eyebrow}>Bienvenido</Text>
-        <Text style={styles.title}>Iniciar sesión</Text>
-        <Text style={styles.subtitle}>Ingresa tus datos para continuar</Text>
+      <ScrollView
+        contentContainerStyle={[
+          s.scroll,
+          { paddingTop: inset.top + espacio.xxl, paddingBottom: inset.bottom + espacio.xl },
+        ]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Rótulo del tablero: la tesis, a tamaño de tablero */}
+        <View style={s.rotulo}>
+          <Text style={[texto.mega, s.palabra]}>PUNTO</Text>
+          <Text style={[texto.mega, s.palabra]}>DE</Text>
+          <Text style={[texto.mega, s.palabra]}>VENTA</Text>
+          <View style={s.reglaGruesa} />
+          <Placa>Inventario y ventas · sin conexión</Placa>
+        </View>
 
-        <Text style={styles.label}>Correo electrónico</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="tu@correo.com"
-          placeholderTextColor="#9aa0a6"
-          keyboardType="email-address"
-          autoCapitalize="none"
-          autoCorrect={false}
-          value={email}
-          onChangeText={(v) => { setEmail(v); setError(null); }}
-        />
+        {/* Zona del pulgar */}
+        <View style={s.formulario}>
+          <Campo
+            rotulo="Correo"
+            placeholder="tu@correo.com"
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+            autoComplete="email"
+            textContentType="emailAddress"
+            value={email}
+            onChangeText={(v) => { setEmail(v); setError(null); }}
+          />
 
-        <Text style={styles.label}>Contraseña</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Tu contraseña"
-          placeholderTextColor="#9aa0a6"
-          secureTextEntry
-          value={password}
-          onChangeText={(v) => { setPassword(v); setError(null); }}
-        />
+          <Campo
+            rotulo="Contraseña"
+            placeholder="Tu contraseña"
+            secureTextEntry
+            autoComplete="current-password"
+            textContentType="password"
+            value={password}
+            onChangeText={(v) => { setPassword(v); setError(null); }}
+          />
 
-        {error && <Text style={styles.error}>{error}</Text>}
+          {error ? (
+            <View style={s.error}>
+              <Aviso texto={error} tipo="error" />
+            </View>
+          ) : null}
 
-        <TouchableOpacity
-          style={[styles.primaryButton, loading && styles.buttonDisabled]}
-          onPress={handleSubmit}
-          disabled={loading}
-        >
-          <Text style={styles.primaryButtonText}>{loading ? 'Verificando...' : 'Entrar'}</Text>
-        </TouchableOpacity>
+          <Boton onPress={handleSubmit} cargando={cargando} icono="arrow-right">
+            Entrar
+          </Boton>
 
-        <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-          <Text style={styles.switchText}>¿No tienes cuenta? Regístrate</Text>
-        </TouchableOpacity>
-      </View>
+          <Enlace onPress={() => navigation.navigate('Register')}>
+            No tengo cuenta · solicitar acceso
+          </Enlace>
+        </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0f172a',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
+const s = StyleSheet.create({
+  pantalla: { flex: 1, backgroundColor: color.tabla },
+  scroll: { flexGrow: 1, paddingHorizontal: espacio.base, justifyContent: 'space-between' },
+  rotulo: { paddingTop: espacio.lg },
+  palabra: { color: color.tinta },
+  reglaGruesa: {
+    height: 3,
+    backgroundColor: color.tinta,
+    marginTop: espacio.lg,
+    marginBottom: espacio.md,
+    width: 56,
   },
-  card: {
-    width: '100%',
-    maxWidth: 420,
-    backgroundColor: '#111827',
-    borderRadius: 20,
-    padding: 24,
-  },
-  eyebrow: { color: '#60a5fa', fontSize: 13, fontWeight: '700', marginBottom: 4 },
-  title: { fontSize: 28, fontWeight: '700', color: '#f8fafc', marginBottom: 6 },
-  subtitle: { fontSize: 14, color: '#cbd5e1', marginBottom: 24 },
-  label: { fontSize: 13, color: '#94a3b8', marginBottom: 6, fontWeight: '600' },
-  input: {
-    backgroundColor: '#1f2937',
-    borderColor: '#374151',
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    marginBottom: 16,
-    color: '#f8fafc',
-    fontSize: 16,
-  },
-  primaryButton: {
-    backgroundColor: '#3b82f6',
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 4,
-    marginBottom: 16,
-  },
-  buttonDisabled: { opacity: 0.6 },
-  primaryButtonText: { color: '#fff', fontWeight: '700', fontSize: 16 },
-  switchText: { textAlign: 'center', color: '#93c5fd', fontWeight: '600' },
-  error: {
-    color: '#fca5a5',
-    marginBottom: 12,
-    fontSize: 14,
-    backgroundColor: '#450a0a',
-    borderRadius: 8,
-    padding: 10,
-  },
+  formulario: { paddingTop: espacio.xxxl },
+  error: { marginBottom: espacio.base },
 });
