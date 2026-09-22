@@ -1,77 +1,52 @@
-import { useFocusEffect } from '@react-navigation/native';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import { FlatList, StyleSheet, View } from 'react-native';
 
+import { useMensajeFugaz } from '../../hooks/useMensajeFugaz';
+import { useRecargarAlEnfocar } from '../../hooks/useRecargarAlEnfocar';
 import { LoginRow } from '../../types';
-import {
-  Aviso,
-  Boton,
-  Cabecera,
-  Cargando,
-  FilaRegistro,
-  Hoja,
-  Marca,
-  Placa,
-  Selector,
-  Vacio,
-} from '../../ui/componentes';
-import { color, espacio, texto } from '../../ui/tema';
+import { Aviso, Cabecera, Cargando, FilaRegistro, Marca, Vacio, refresco } from '../../ui/componentes';
+import { color, espacio } from '../../ui/tema';
+import { Rol, SolicitudPendiente } from './SolicitudPendiente';
 
-type UsuarioPendiente = Pick<LoginRow, 'Id' | 'Correo' | 'Estado'> & { rolSeleccionado: 'admin' | 'cliente' };
-
-type UsuarioActivo = Pick<LoginRow, 'Id' | 'Correo' | 'Rol' | 'Estado'>;
-
-const ROLES = [
-  { valor: 'cliente' as const, etiqueta: 'Cliente' },
-  { valor: 'admin' as const, etiqueta: 'Admin' },
-];
+type Pendiente = Pick<LoginRow, 'Id' | 'Correo'> & { rol: Rol };
+type Activo = Pick<LoginRow, 'Id' | 'Correo' | 'Rol'>;
 
 export default function AdminCuentas() {
   const db = useSQLiteContext();
-  const [pendientes, setPendientes] = useState<UsuarioPendiente[]>([]);
-  const [activos, setActivos] = useState<UsuarioActivo[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const [pendientes, setPendientes] = useState<Pendiente[]>([]);
+  const [activos, setActivos] = useState<Activo[]>([]);
+  const [cargando, setCargando] = useState(true);
+  const [refrescando, setRefrescando] = useState(false);
   const [procesando, setProcesando] = useState<number | null>(null);
-  const [mensaje, setMensaje] = useState<{ texto: string; tipo: 'ok' | 'error' } | null>(null);
+  const [mensaje, mostrarMensaje] = useMensajeFugaz();
 
-  const cargarDatos = useCallback(async () => {
-    const pend = await db.getAllAsync<Pick<LoginRow, 'Id' | 'Correo' | 'Estado'>>(
-      "SELECT Id, Correo, Estado FROM LOGIN WHERE Estado = 'Pendiente' ORDER BY Id DESC",
+  const cargar = useCallback(async () => {
+    const enEspera = await db.getAllAsync<Pick<LoginRow, 'Id' | 'Correo'>>(
+      "SELECT Id, Correo FROM LOGIN WHERE Estado = 'Pendiente' ORDER BY Id DESC",
     );
-    const act = await db.getAllAsync<UsuarioActivo>(
-      "SELECT Id, Correo, Rol, Estado FROM LOGIN WHERE Estado = 'Activo' AND Rol != 'admin' ORDER BY Correo",
+    const activas = await db.getAllAsync<Activo>(
+      "SELECT Id, Correo, Rol FROM LOGIN WHERE Estado = 'Activo' AND Rol != 'admin' ORDER BY Correo",
     );
-    setPendientes(pend.map((u) => ({ ...u, rolSeleccionado: 'cliente' })));
-    setActivos(act);
-    setLoading(false);
-    setRefreshing(false);
+    // El rol propuesto es estado de pantalla, no de base: arranca en cliente.
+    setPendientes(enEspera.map((u) => ({ ...u, rol: 'cliente' })));
+    setActivos(activas);
+    setCargando(false);
+    setRefrescando(false);
   }, [db]);
 
-  // Las pestañas no se desmontan: sin esto la pantalla se queda con los datos
-  // que leyó la primera vez. Se recarga cada vez que vuelve al frente.
-  useFocusEffect(useCallback(() => { cargarDatos(); }, [cargarDatos]));
+  useRecargarAlEnfocar(cargar);
 
-  const temporizador = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => { if (temporizador.current) clearTimeout(temporizador.current); }, []);
-
-  const mostrarMensaje = (texto: string, tipo: 'ok' | 'error') => {
-    setMensaje({ texto, tipo });
-    if (temporizador.current) clearTimeout(temporizador.current);
-    temporizador.current = setTimeout(() => setMensaje(null), 4500);
-  };
-
-  const activarCuenta = async (usuario: UsuarioPendiente) => {
+  const activar = async (usuario: Pendiente) => {
     setProcesando(usuario.Id);
     try {
       await db.runAsync(
         "UPDATE LOGIN SET Estado = 'Activo', Rol = ? WHERE Id = ?",
-        usuario.rolSeleccionado,
+        usuario.rol,
         usuario.Id,
       );
-      mostrarMensaje(`${usuario.Correo} entra como ${usuario.rolSeleccionado}`, 'ok');
-      await cargarDatos();
+      mostrarMensaje(`${usuario.Correo} entra como ${usuario.rol}`, 'ok');
+      await cargar();
     } catch {
       mostrarMensaje('No se pudo activar la cuenta. Inténtalo otra vez.', 'error');
     } finally {
@@ -79,13 +54,10 @@ export default function AdminCuentas() {
     }
   };
 
-  const cambiarRolPendiente = (id: number, rol: 'admin' | 'cliente') => {
-    setPendientes((prev) =>
-      prev.map((u) => (u.Id === id ? { ...u, rolSeleccionado: rol } : u)),
-    );
-  };
+  const cambiarRol = (id: number, rol: Rol) =>
+    setPendientes((prev) => prev.map((u) => (u.Id === id ? { ...u, rol } : u)));
 
-  if (loading) return <Cargando />;
+  if (cargando) return <Cargando />;
 
   return (
     <View style={s.pantalla}>
@@ -96,14 +68,7 @@ export default function AdminCuentas() {
       )}
 
       <FlatList
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => { setRefreshing(true); cargarDatos(); }}
-            tintColor={color.tinta}
-            colors={[color.tinta]}
-          />
-        }
+        refreshControl={refresco(refrescando, () => { setRefrescando(true); cargar(); })}
         ListHeaderComponent={
           <>
             <Cabecera
@@ -117,47 +82,21 @@ export default function AdminCuentas() {
             />
 
             {pendientes.length === 0 ? (
-              <Hoja>
-                <Vacio
-                  icono="user-check"
-                  titulo="Bandeja al día"
-                  cuerpo="Cuando alguien solicite acceso desde la pantalla de registro, aparecerá aquí para que le asignes un rol."
-                />
-              </Hoja>
+              <Vacio
+                icono="user-check"
+                titulo="Bandeja al día"
+                cuerpo="Cuando alguien solicite acceso desde la pantalla de registro, aparecerá aquí para que le asignes un rol."
+              />
             ) : (
               pendientes.map((u) => (
-                <View key={u.Id} style={s.solicitud}>
-                  <View style={s.solicitudEncabezado}>
-                    <Text style={[texto.cuerpoFuerte, s.correo]} numberOfLines={1}>
-                      {u.Correo}
-                    </Text>
-                    <Marca tono="espera">En espera</Marca>
-                  </View>
-
-                  <Placa style={s.rotuloRol}>Entra como</Placa>
-                  <Selector
-                    opciones={ROLES}
-                    valor={u.rolSeleccionado}
-                    onCambio={(rol) => cambiarRolPendiente(u.Id, rol)}
-                  />
-
-                  {/* Acción irreversible: aislada con espacio propio. */}
-                  <View style={s.accion}>
-                    <Text style={[texto.menor, s.consecuencia]}>
-                      {u.rolSeleccionado === 'admin'
-                        ? 'Como admin podrá aprobar cuentas y editar el inventario.'
-                        : 'Como cliente podrá comprar, pero no editar el inventario.'}
-                    </Text>
-                    <Boton
-                      tipo="contorno"
-                      onPress={() => activarCuenta(u)}
-                      cargando={procesando === u.Id}
-                      icono="check"
-                    >
-                      Activar cuenta
-                    </Boton>
-                  </View>
-                </View>
+                <SolicitudPendiente
+                  key={u.Id}
+                  correo={u.Correo}
+                  rol={u.rol}
+                  procesando={procesando === u.Id}
+                  onCambiarRol={(rol) => cambiarRol(u.Id, rol)}
+                  onActivar={() => activar(u)}
+                />
               ))
             )}
 
@@ -180,13 +119,11 @@ export default function AdminCuentas() {
           />
         )}
         ListEmptyComponent={
-          <Hoja>
-            <Vacio
-              icono="users"
-              titulo="Todavía nadie"
-              cuerpo="Al activar una solicitud, la cuenta aparecerá en esta lista."
-            />
-          </Hoja>
+          <Vacio
+            icono="users"
+            titulo="Todavía nadie"
+            cuerpo="Al activar una solicitud, la cuenta aparecerá en esta lista."
+          />
         }
         contentContainerStyle={s.lista}
       />
@@ -198,23 +135,5 @@ const s = StyleSheet.create({
   pantalla: { flex: 1, backgroundColor: color.tabla },
   lista: { paddingBottom: espacio.xxxl },
   aviso: { paddingHorizontal: espacio.base, paddingTop: espacio.md },
-  solicitud: {
-    backgroundColor: color.lamina,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: color.regla,
-    padding: espacio.base,
-    marginBottom: espacio.md,
-  },
-  solicitudEncabezado: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: espacio.lg,
-  },
-  correo: { color: color.tinta, flex: 1, marginRight: espacio.md },
-  rotuloRol: { marginBottom: espacio.sm },
-  accion: { marginTop: espacio.xxl },
-  consecuencia: { color: color.tintaMedia, marginBottom: espacio.md },
   separador: { marginTop: espacio.xl },
 });

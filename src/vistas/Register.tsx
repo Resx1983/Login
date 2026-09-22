@@ -1,111 +1,74 @@
-import { Feather } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { RootStackParamList } from '../types';
-import { Aviso, Boton, Campo, Enlace, Placa, Regla } from '../ui/componentes';
+import { Aviso, Boton, Campo, Enlace, Placa } from '../ui/componentes';
 import { color, espacio, texto } from '../ui/tema';
+import { ReglasContrasena, primerFallo } from './ReglasContrasena';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Register'> & {
   onRegister: (email: string, password: string) => Promise<string | null>;
 };
 
-/** Reglas de contraseña. Se muestran mientras se escribe, no después de fallar. */
-const REGLAS = [
-  { texto: 'Al menos 8 caracteres', cumple: (p: string) => p.length >= 8 },
-  { texto: 'Una letra mayúscula', cumple: (p: string) => /[A-Z]/.test(p) },
-  { texto: 'Un número', cumple: (p: string) => /[0-9]/.test(p) },
-];
-
-/** Valida que la contraseña sea segura: mín. 8 chars, 1 mayúscula, 1 número */
-function validatePassword(password: string): string | null {
-  if (password.length < 8) return 'Faltan caracteres: usa 8 o más.';
-  if (!/[A-Z]/.test(password)) return 'Añade al menos una letra mayúscula.';
-  if (!/[0-9]/.test(password)) return 'Añade al menos un número.';
-  return null;
-}
-
-/** Valida formato de correo */
-function validateEmail(email: string): string | null {
-  if (!email.trim()) return 'Escribe el correo con el que vas a entrar.';
-  if (!/\S+@\S+\.\S+/.test(email.trim())) return 'Ese correo no tiene un formato válido. Revisa que incluya @ y un dominio.';
-  return null;
-}
-
 type Errores = { correo?: string; clave?: string; confirmacion?: string; general?: string };
+
+function validarCorreo(correo: string): string | null {
+  if (!correo.trim()) return 'Escribe el correo con el que vas a entrar.';
+  if (!/\S+@\S+\.\S+/.test(correo.trim())) {
+    return 'Ese correo no tiene un formato válido. Revisa que incluya @ y un dominio.';
+  }
+  return null;
+}
 
 export default function Register({ navigation, onRegister }: Props) {
   const inset = useSafeAreaInsets();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [correo, setCorreo] = useState('');
+  const [clave, setClave] = useState('');
+  const [confirmacion, setConfirmacion] = useState('');
   const [errores, setErrores] = useState<Errores>({});
-  const [loading, setLoading] = useState(false);
-  const [registered, setRegistered] = useState(false);
+  const [enviando, setEnviando] = useState(false);
+  const [enviada, setEnviada] = useState(false);
 
-  const handleSubmit = async () => {
-    setErrores({});
+  /** Primer error que encuentre, asignado a su campo. */
+  const revisar = (): Errores | null => {
+    const errorCorreo = validarCorreo(correo);
+    if (errorCorreo) return { correo: errorCorreo };
 
-    const emailError = validateEmail(email);
-    if (emailError) { setErrores({ correo: emailError }); return; }
+    const errorClave = primerFallo(clave);
+    if (errorClave) return { clave: errorClave };
 
-    const passwordError = validatePassword(password);
-    if (passwordError) { setErrores({ clave: passwordError }); return; }
+    if (clave !== confirmacion) return { confirmacion: 'Las dos contraseñas no coinciden.' };
 
-    if (password !== confirmPassword) {
-      setErrores({ confirmacion: 'Las dos contraseñas no coinciden.' });
-      return;
-    }
-
-    setLoading(true);
-    const result = await onRegister(email, password);
-    setLoading(false);
-
-    if (result) {
-      setErrores({ general: result });
-      return;
-    }
-
-    setRegistered(true);
+    return null;
   };
 
-  // ── Solicitud enviada ──────────────────────────────────────────────────────
-  if (registered) {
-    return (
-      <View style={[s.pantalla, s.confirmacion, { paddingTop: inset.top, paddingBottom: inset.bottom }]}>
-        <View>
-          <Placa>Estado de la solicitud</Placa>
-          <Text style={[texto.mega, s.confirmacionTitulo]}>EN{'\n'}ESPERA</Text>
-          <View style={s.reglaGruesa} />
-          <Text style={[texto.cuerpo, s.confirmacionCuerpo]}>
-            Guardamos tu solicitud para{' '}
-            <Text style={texto.cuerpoFuerte}>{email.trim().toLowerCase()}</Text>. Un administrador
-            debe activarla y asignarte un rol antes de que puedas entrar.
-          </Text>
-        </View>
+  const enviar = async () => {
+    const fallo = revisar();
+    setErrores(fallo ?? {});
+    if (fallo) return;
 
-        <Boton onPress={() => navigation.replace('Login')} icono="arrow-left">
-          Volver a iniciar sesión
-        </Boton>
-      </View>
+    setEnviando(true);
+    const resultado = await onRegister(correo, clave);
+    setEnviando(false);
+
+    if (resultado) setErrores({ general: resultado });
+    else setEnviada(true);
+  };
+
+  if (enviada) {
+    return (
+      <SolicitudEnviada
+        correo={correo.trim().toLowerCase()}
+        inset={inset}
+        onVolver={() => navigation.replace('Login')}
+      />
     );
   }
 
-  // ── Formulario ─────────────────────────────────────────────────────────────
   return (
-    <KeyboardAvoidingView
-      style={s.pantalla}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
+    <KeyboardAvoidingView style={s.pantalla} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScrollView
         contentContainerStyle={[
           s.scroll,
@@ -131,9 +94,9 @@ export default function Register({ navigation, onRegister }: Props) {
             autoCorrect={false}
             autoComplete="email"
             textContentType="emailAddress"
-            value={email}
+            value={correo}
             error={errores.correo}
-            onChangeText={(v) => { setEmail(v); setErrores({}); }}
+            onChangeText={(v) => { setCorreo(v); setErrores({}); }}
           />
 
           <Campo
@@ -143,36 +106,12 @@ export default function Register({ navigation, onRegister }: Props) {
             secureTextEntry
             autoComplete="new-password"
             textContentType="newPassword"
-            value={password}
+            value={clave}
             error={errores.clave}
-            onChangeText={(v) => { setPassword(v); setErrores({}); }}
+            onChangeText={(v) => { setClave(v); setErrores({}); }}
           />
 
-          <View style={s.reglas}>
-            {REGLAS.map((r, i) => {
-              const ok = r.cumple(password);
-              return (
-                <View key={r.texto}>
-                  {i > 0 && <Regla />}
-                  <View style={s.regla}>
-                    <Feather
-                      name={ok ? 'check' : 'minus'}
-                      size={14}
-                      color={ok ? color.tinta : color.tintaMedia}
-                    />
-                    <Text
-                      style={[
-                        ok ? texto.cuerpoFuerte : texto.cuerpo,
-                        { color: ok ? color.tinta : color.tintaMedia, marginLeft: espacio.sm, fontSize: 14 },
-                      ]}
-                    >
-                      {r.texto}
-                    </Text>
-                  </View>
-                </View>
-              );
-            })}
-          </View>
+          <ReglasContrasena clave={clave} />
 
           <Campo
             rotulo="Repetir contraseña"
@@ -181,9 +120,9 @@ export default function Register({ navigation, onRegister }: Props) {
             secureTextEntry
             autoComplete="new-password"
             textContentType="newPassword"
-            value={confirmPassword}
+            value={confirmacion}
             error={errores.confirmacion}
-            onChangeText={(v) => { setConfirmPassword(v); setErrores({}); }}
+            onChangeText={(v) => { setConfirmacion(v); setErrores({}); }}
           />
 
           {errores.general ? (
@@ -192,7 +131,7 @@ export default function Register({ navigation, onRegister }: Props) {
             </View>
           ) : null}
 
-          <Boton onPress={handleSubmit} cargando={loading} icono="arrow-right">
+          <Boton onPress={enviar} cargando={enviando} icono="arrow-right">
             Enviar solicitud
           </Boton>
 
@@ -205,25 +144,53 @@ export default function Register({ navigation, onRegister }: Props) {
   );
 }
 
+/** El estado en el que queda la cuenta es la cifra: la solicitud está EN ESPERA. */
+function SolicitudEnviada({
+  correo,
+  inset,
+  onVolver,
+}: {
+  correo: string;
+  inset: { top: number; bottom: number };
+  onVolver: () => void;
+}) {
+  return (
+    <View style={[s.pantalla, s.confirmacion, { paddingTop: inset.top, paddingBottom: inset.bottom }]}>
+      <View>
+        <Placa>Estado de la solicitud</Placa>
+        <Text style={[texto.mega, s.confirmacionTitulo]}>EN{'\n'}ESPERA</Text>
+        <View style={s.reglaGruesa} />
+        <Text style={[texto.cuerpo, s.confirmacionCuerpo]}>
+          Guardamos tu solicitud para <Text style={texto.cuerpoFuerte}>{correo}</Text>. Un
+          administrador debe activarla y asignarte un rol antes de que puedas entrar.
+        </Text>
+      </View>
+
+      <Boton onPress={onVolver} icono="arrow-left">
+        Volver a iniciar sesión
+      </Boton>
+    </View>
+  );
+}
+
 const s = StyleSheet.create({
   pantalla: { flex: 1, backgroundColor: color.tabla },
   scroll: { flexGrow: 1, paddingHorizontal: espacio.base },
   titulo: { color: color.tinta, marginTop: espacio.sm },
   subtitulo: { color: color.tintaMedia, marginTop: espacio.md, maxWidth: 300 },
   formulario: { paddingTop: espacio.xxl },
-  reglas: {
-    backgroundColor: color.lamina,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: color.regla,
-    paddingHorizontal: espacio.md,
-    marginTop: -espacio.sm,
-    marginBottom: espacio.lg,
-  },
-  regla: { flexDirection: 'row', alignItems: 'center', paddingVertical: espacio.md },
   error: { marginBottom: espacio.base },
-  // Confirmación
-  confirmacion: { paddingHorizontal: espacio.base, justifyContent: 'space-between', paddingVertical: espacio.xxxl },
+  confirmacion: {
+    paddingHorizontal: espacio.base,
+    justifyContent: 'space-between',
+    paddingVertical: espacio.xxxl,
+  },
   confirmacionTitulo: { color: color.tinta, marginTop: espacio.sm },
-  reglaGruesa: { height: 3, backgroundColor: color.tinta, marginTop: espacio.lg, marginBottom: espacio.lg, width: 56 },
+  reglaGruesa: {
+    height: 3,
+    backgroundColor: color.tinta,
+    marginVertical: espacio.lg,
+    width: 56,
+  },
   confirmacionCuerpo: { color: color.tintaMedia, maxWidth: 340 },
 });

@@ -82,6 +82,13 @@ export const RADIO = 0;
 /** Duración única de transición. El producto está en una tarea, no en una película. */
 export const MS = 180;
 
+/**
+ * Onda de Android (`android_ripple`). En iOS no aplica y se ignora.
+ * `ONDA` va sobre lámina o tabla; `ONDA_CLARA` sobre una plantilla de tinta.
+ */
+export const ONDA = { color: 'rgba(21,20,15,0.12)' };
+export const ONDA_CLARA = { color: 'rgba(251,250,246,0.18)' };
+
 /** Cifras que se leen en columna. iOS lo aplica siempre; Android desde RN 0.70. */
 export const CIFRAS_TABULARES = { fontVariant: ['tabular-nums' as const] };
 

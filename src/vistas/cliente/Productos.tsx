@@ -1,47 +1,54 @@
-import { Feather } from '@expo/vector-icons';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { FlatList, StyleSheet, Text, View } from 'react-native';
 
 import { useCarrito } from '../../context/CarritoContext';
+import { useRecargarAlEnfocar } from '../../hooks/useRecargarAlEnfocar';
 import { ProductoRow } from '../../types';
-import { Boton, Cabecera, Cargando, FilaRegistro, Marca, Vacio } from '../../ui/componentes';
-import { CIFRAS_TABULARES, TOQUE_MINIMO, color, dinero, espacio, texto } from '../../ui/tema';
+import {
+  ALTO_PIE,
+  Boton,
+  Cabecera,
+  Cargando,
+  FilaRegistro,
+  Marca,
+  Pie,
+  Vacio,
+  refresco,
+} from '../../ui/componentes';
+import { CIFRAS_TABULARES, color, dinero, espacio, texto } from '../../ui/tema';
+import { ContadorProducto } from './ContadorProducto';
 
 export default function Productos() {
   const db = useSQLiteContext();
   const navegacion = useNavigation<{ navigate: (pantalla: string) => void }>();
   const { agregarItem, quitarItem, items, totalItems } = useCarrito();
   const [productos, setProductos] = useState<ProductoRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const [cargando, setCargando] = useState(true);
+  const [refrescando, setRefrescando] = useState(false);
 
   const cargar = useCallback(async () => {
     const rows = await db.getAllAsync<ProductoRow>(
       'SELECT Id, Nombre, Descripcion, ValorUnitario, Stock FROM PRODUCTOS WHERE Stock > 0 ORDER BY Nombre',
     );
     setProductos(rows);
-    setLoading(false);
-    setRefreshing(false);
+    setCargando(false);
+    setRefrescando(false);
   }, [db]);
 
-  // Las pestañas no se desmontan: sin esto la pantalla se queda con los datos
-  // que leyó la primera vez. Se recarga cada vez que vuelve al frente.
-  useFocusEffect(useCallback(() => { cargar(); }, [cargar]));
+  useRecargarAlEnfocar(cargar);
 
-  const cantidadEnCarrito = (id: number) =>
-    items.find((i) => i.producto.Id === id)?.cantidad ?? 0;
+  const enCarrito = (id: number) => items.find((i) => i.producto.Id === id)?.cantidad ?? 0;
 
   /** Sube o baja una unidad respetando el stock. En 0 sale del carrito. */
   const ajustar = (producto: ProductoRow, delta: number) => {
-    const actual = cantidadEnCarrito(producto.Id);
-    const siguiente = Math.min(Math.max(actual + delta, 0), producto.Stock);
+    const siguiente = Math.min(Math.max(enCarrito(producto.Id) + delta, 0), producto.Stock);
     if (siguiente === 0) quitarItem(producto.Id);
     else agregarItem(producto, siguiente);
   };
 
-  if (loading) return <Cargando />;
+  if (cargando) return <Cargando />;
 
   const totalPedido = items.reduce((n, i) => n + i.producto.ValorUnitario * i.cantidad, 0);
 
@@ -50,14 +57,7 @@ export default function Productos() {
       <FlatList
         data={productos}
         keyExtractor={(item) => String(item.Id)}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => { setRefreshing(true); cargar(); }}
-            tintColor={color.tinta}
-            colors={[color.tinta]}
-          />
-        }
+        refreshControl={refresco(refrescando, () => { setRefrescando(true); cargar(); })}
         ListHeaderComponent={
           <Cabecera
             rotulo="A la venta"
@@ -66,17 +66,16 @@ export default function Productos() {
           />
         }
         ListEmptyComponent={
-          <View style={s.hojaVacia}>
-            <Vacio
-              icono="package"
-              titulo="Nada disponible"
-              cuerpo="Todo está agotado por ahora. Desliza hacia abajo para volver a consultar el inventario."
-            />
-          </View>
+          <Vacio
+            icono="package"
+            titulo="Nada disponible"
+            cuerpo="Todo está agotado por ahora. Desliza hacia abajo para volver a consultar el inventario."
+          />
         }
         renderItem={({ item, index }) => {
-          const enCarrito = cantidadEnCarrito(item.Id);
-          const restante = item.Stock - enCarrito;
+          const elegidas = enCarrito(item.Id);
+          const restante = item.Stock - elegidas;
+
           return (
             <FilaRegistro
               titulo={item.Nombre}
@@ -88,8 +87,9 @@ export default function Productos() {
                   {dinero(item.ValorUnitario)}
                 </Text>
               }
+              // Ninguna cifra va sola: el stock dice qué queda si confirmas.
               marca={
-                enCarrito > 0 ? (
+                elegidas > 0 ? (
                   <Marca tono={restante === 0 ? 'espera' : 'neutro'}>
                     {restante === 0 ? 'Llevas todo el stock' : `Quedan ${restante} si confirmas`}
                   </Marca>
@@ -98,35 +98,13 @@ export default function Productos() {
                 )
               }
               derecha={
-                enCarrito === 0 ? (
-                  <Pressable
-                    onPress={() => ajustar(item, 1)}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Agregar ${item.Nombre} al pedido`}
-                    android_ripple={{ color: 'rgba(21,20,15,0.12)' }}
-                    style={({ pressed }) => [s.agregar, pressed && { opacity: 0.7 }]}
-                  >
-                    <Feather name="plus" size={18} color={color.tinta} />
-                    <Text style={[texto.placa, s.agregarTexto]}>Agregar</Text>
-                  </Pressable>
-                ) : (
-                  <View style={s.contador}>
-                    <Paso
-                      icono="minus"
-                      onPress={() => ajustar(item, -1)}
-                      etiqueta={`Quitar una unidad de ${item.Nombre}`}
-                    />
-                    <View style={s.cantidad}>
-                      <Text style={[texto.grande, s.cantidadTexto]}>{enCarrito}</Text>
-                    </View>
-                    <Paso
-                      icono="plus"
-                      onPress={() => ajustar(item, 1)}
-                      desactivado={restante === 0}
-                      etiqueta={`Agregar una unidad de ${item.Nombre}`}
-                    />
-                  </View>
-                )
+                <ContadorProducto
+                  nombre={item.Nombre}
+                  cantidad={elegidas}
+                  puedeSumar={restante > 0}
+                  onSumar={() => ajustar(item, 1)}
+                  onRestar={() => ajustar(item, -1)}
+                />
               }
             />
           );
@@ -136,85 +114,19 @@ export default function Productos() {
 
       {/* Una acción primaria, siempre en el mismo sitio, bajo el pulgar */}
       {totalItems > 0 && (
-        <View style={s.pie}>
+        <Pie flotante>
           <Boton onPress={() => navegacion.navigate('Compra')} icono="arrow-right">
             {`Ver pedido · ${dinero(totalPedido)}`}
           </Boton>
-        </View>
+        </Pie>
       )}
     </View>
-  );
-}
-
-function Paso({
-  icono,
-  onPress,
-  desactivado,
-  etiqueta,
-}: {
-  icono: 'plus' | 'minus';
-  onPress: () => void;
-  desactivado?: boolean;
-  etiqueta: string;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      disabled={desactivado}
-      accessibilityRole="button"
-      accessibilityLabel={etiqueta}
-      accessibilityState={{ disabled: !!desactivado }}
-      android_ripple={desactivado ? undefined : { color: 'rgba(21,20,15,0.12)' }}
-      style={({ pressed }) => [s.paso, desactivado && s.pasoInactivo, pressed && !desactivado && { opacity: 0.6 }]}
-    >
-      <Feather name={icono} size={18} color={desactivado ? color.sobreInerte : color.tinta} />
-    </Pressable>
   );
 }
 
 const s = StyleSheet.create({
   pantalla: { flex: 1, backgroundColor: color.tabla },
   lista: { paddingBottom: espacio.xxxl },
-  listaConPie: { paddingBottom: 96 },
+  listaConPie: { paddingBottom: ALTO_PIE },
   precio: { color: color.tinta, ...CIFRAS_TABULARES },
-  agregar: {
-    minHeight: TOQUE_MINIMO,
-    minWidth: 96,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: color.tinta,
-    paddingHorizontal: espacio.md,
-    overflow: 'hidden',
-  },
-  agregarTexto: { color: color.tinta, marginTop: espacio.xs, fontSize: 11 },
-  contador: { alignItems: 'center', borderWidth: 1.5, borderColor: color.tinta },
-  paso: { width: TOQUE_MINIMO, height: TOQUE_MINIMO, alignItems: 'center', justifyContent: 'center' },
-  pasoInactivo: { backgroundColor: color.inerte },
-  cantidad: {
-    width: TOQUE_MINIMO,
-    paddingVertical: espacio.sm,
-    alignItems: 'center',
-    backgroundColor: color.flash,
-    borderTopWidth: 1.5,
-    borderBottomWidth: 1.5,
-    borderColor: color.tinta,
-  },
-  cantidadTexto: { color: color.tinta, ...CIFRAS_TABULARES },
-  pie: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    padding: espacio.base,
-    backgroundColor: color.tabla,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: color.regla,
-  },
-  hojaVacia: {
-    backgroundColor: color.lamina,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: color.regla,
-  },
 });

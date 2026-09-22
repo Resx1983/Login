@@ -1,102 +1,83 @@
 import { useSQLiteContext } from 'expo-sqlite';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useAuth } from '../../context/AuthContext';
+import { useMensajeFugaz } from '../../hooks/useMensajeFugaz';
 import { ClienteRow } from '../../types';
-import { Aviso, Boton, Cabecera, Campo, Cargando, Placa } from '../../ui/componentes';
+import { Aviso, Boton, Cabecera, Campo, Cargando, Pie, Placa } from '../../ui/componentes';
 import { color, espacio, texto } from '../../ui/tema';
 
-type FormPerfil = {
-  nombre: string;
-  apellido: string;
-  correo: string;
-};
+type Campos = { nombre: string; apellido: string; correo: string };
+
+function validar(campos: Campos): Partial<Campos> {
+  const e: Partial<Campos> = {};
+  if (!campos.nombre.trim()) e.nombre = 'Escribe tu nombre como aparece en la factura.';
+  if (!campos.apellido.trim()) e.apellido = 'Escribe tu apellido.';
+  if (!campos.correo.trim() || !/\S+@\S+\.\S+/.test(campos.correo.trim())) {
+    e.correo = 'Ese correo no tiene un formato válido. Revisa que incluya @ y un dominio.';
+  }
+  return e;
+}
 
 export default function Perfil() {
   const db = useSQLiteContext();
   const { usuario } = useAuth();
   const [cliente, setCliente] = useState<ClienteRow | null>(null);
-  const [form, setForm] = useState<FormPerfil>({ nombre: '', apellido: '', correo: '' });
-  const [errores, setErrores] = useState<Partial<FormPerfil>>({});
-  const [loading, setLoading] = useState(true);
+  const [campos, setCampos] = useState<Campos>({ nombre: '', apellido: '', correo: '' });
+  const [errores, setErrores] = useState<Partial<Campos>>({});
+  const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
-  const [mensaje, setMensaje] = useState<{ texto: string; tipo: 'ok' | 'error' } | null>(null);
+  const [mensaje, mostrarMensaje] = useMensajeFugaz();
 
-  const cargarPerfil = useCallback(async () => {
+  const cargar = useCallback(async () => {
     if (!usuario) return;
     const row = await db.getFirstAsync<ClienteRow>(
       'SELECT * FROM CLIENTES WHERE IdLogin = ?',
       usuario.id,
     );
     setCliente(row ?? null);
-    if (row) {
-      setForm({
-        nombre: row.Nombre ?? '',
-        apellido: row.Apellido ?? '',
-        correo: row.Correo ?? '',
-      });
-    } else {
-      // Pre-rellenar correo desde sesión
-      setForm({ nombre: '', apellido: '', correo: usuario.email });
-    }
-    setLoading(false);
+    setCampos(
+      row
+        ? { nombre: row.Nombre ?? '', apellido: row.Apellido ?? '', correo: row.Correo ?? '' }
+        : { nombre: '', apellido: '', correo: usuario.email },
+    );
+    setCargando(false);
   }, [db, usuario]);
 
-  useEffect(() => { cargarPerfil(); }, [cargarPerfil]);
+  // Este es el único que NO se recarga al enfocar: relee de la base borraría lo
+  // que el usuario esté escribiendo, y nadie más toca su propio perfil.
+  useEffect(() => { cargar(); }, [cargar]);
 
-  const temporizador = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => { if (temporizador.current) clearTimeout(temporizador.current); }, []);
-
-  const mostrarMensaje = (texto: string, tipo: 'ok' | 'error') => {
-    setMensaje({ texto, tipo });
-    if (temporizador.current) clearTimeout(temporizador.current);
-    temporizador.current = setTimeout(() => setMensaje(null), 4500);
-  };
-
-  const validar = (): boolean => {
-    const e: Partial<FormPerfil> = {};
-    if (!form.nombre.trim()) e.nombre = 'Escribe tu nombre como aparece en la factura.';
-    if (!form.apellido.trim()) e.apellido = 'Escribe tu apellido.';
-    if (!form.correo.trim() || !/\S+@\S+\.\S+/.test(form.correo.trim())) {
-      e.correo = 'Ese correo no tiene un formato válido. Revisa que incluya @ y un dominio.';
-    }
-    setErrores(e);
-    return Object.keys(e).length === 0;
+  const escribir = (clave: keyof Campos) => (v: string) => {
+    setCampos((c) => ({ ...c, [clave]: v }));
+    setErrores((e) => ({ ...e, [clave]: undefined }));
   };
 
   const guardar = async () => {
-    if (!validar() || !usuario) return;
+    const e = validar(campos);
+    setErrores(e);
+    if (Object.keys(e).length > 0 || !usuario) return;
+
+    const nombre = campos.nombre.trim();
+    const apellido = campos.apellido.trim();
+    const correo = campos.correo.trim().toLowerCase();
+
     setGuardando(true);
     try {
       if (cliente) {
-        // Actualizar
         await db.runAsync(
           'UPDATE CLIENTES SET Nombre=?, Apellido=?, Correo=? WHERE Id=?',
-          form.nombre.trim(),
-          form.apellido.trim(),
-          form.correo.trim().toLowerCase(),
-          cliente.Id,
+          nombre, apellido, correo, cliente.Id,
         );
       } else {
-        // Crear nuevo registro de cliente
         await db.runAsync(
           'INSERT INTO CLIENTES (IdLogin, Nombre, Apellido, Correo) VALUES (?,?,?,?)',
-          usuario.id,
-          form.nombre.trim(),
-          form.apellido.trim(),
-          form.correo.trim().toLowerCase(),
+          usuario.id, nombre, apellido, correo,
         );
       }
       mostrarMensaje('Perfil guardado', 'ok');
-      await cargarPerfil();
+      await cargar();
     } catch {
       mostrarMensaje('No se pudo guardar el perfil. Inténtalo otra vez.', 'error');
     } finally {
@@ -104,15 +85,12 @@ export default function Perfil() {
     }
   };
 
-  if (loading) return <Cargando />;
+  if (cargando) return <Cargando />;
 
   const completo = !!cliente;
 
   return (
-    <KeyboardAvoidingView
-      style={s.pantalla}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
+    <KeyboardAvoidingView style={s.pantalla} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScrollView
         contentContainerStyle={s.scroll}
         keyboardShouldPersistTaps="handled"
@@ -120,7 +98,7 @@ export default function Perfil() {
       >
         <Cabecera
           tamano="grande"
-          titulo={completo ? `${form.nombre} ${form.apellido}`.trim() : 'Completa tu perfil'}
+          titulo={completo ? `${campos.nombre} ${campos.apellido}`.trim() : 'Completa tu perfil'}
           apoyo={
             completo
               ? 'Estos son los datos que quedan registrados en cada compra.'
@@ -135,9 +113,9 @@ export default function Perfil() {
             placeholder="Tu nombre"
             autoComplete="given-name"
             textContentType="givenName"
-            value={form.nombre}
+            value={campos.nombre}
             error={errores.nombre}
-            onChangeText={(v) => { setForm((f) => ({ ...f, nombre: v })); setErrores((e) => ({ ...e, nombre: undefined })); }}
+            onChangeText={escribir('nombre')}
           />
 
           <Campo
@@ -146,9 +124,9 @@ export default function Perfil() {
             placeholder="Tu apellido"
             autoComplete="family-name"
             textContentType="familyName"
-            value={form.apellido}
+            value={campos.apellido}
             error={errores.apellido}
-            onChangeText={(v) => { setForm((f) => ({ ...f, apellido: v })); setErrores((e) => ({ ...e, apellido: undefined })); }}
+            onChangeText={escribir('apellido')}
           />
 
           <Campo
@@ -159,9 +137,9 @@ export default function Perfil() {
             autoCapitalize="none"
             autoComplete="email"
             textContentType="emailAddress"
-            value={form.correo}
+            value={campos.correo}
             error={errores.correo}
-            onChangeText={(v) => { setForm((f) => ({ ...f, correo: v })); setErrores((e) => ({ ...e, correo: undefined })); }}
+            onChangeText={escribir('correo')}
           />
 
           <View style={s.cuenta}>
@@ -171,11 +149,11 @@ export default function Perfil() {
               El correo con el que entras no cambia desde aquí.
             </Text>
           </View>
-
         </View>
       </ScrollView>
 
-      <View style={s.pie}>
+      {/* El acuse vive junto al botón que lo dispara, no arriba del scroll */}
+      <Pie>
         {mensaje && (
           <View style={s.aviso}>
             <Aviso texto={mensaje.texto} tipo={mensaje.tipo} />
@@ -184,15 +162,14 @@ export default function Perfil() {
         <Boton onPress={guardar} cargando={guardando} icono="check">
           {completo ? 'Guardar cambios' : 'Crear perfil'}
         </Boton>
-      </View>
+      </Pie>
     </KeyboardAvoidingView>
   );
 }
 
 const s = StyleSheet.create({
   pantalla: { flex: 1, backgroundColor: color.tabla },
-  scroll: { paddingBottom: 96 },
-  aviso: { marginBottom: espacio.md },
+  scroll: { paddingBottom: espacio.xxl },
   formulario: { paddingHorizontal: espacio.base, paddingTop: espacio.sm },
   cuenta: {
     backgroundColor: color.lamina,
@@ -201,12 +178,7 @@ const s = StyleSheet.create({
     padding: espacio.base,
     marginBottom: espacio.xl,
   },
-  pie: {
-    padding: espacio.base,
-    backgroundColor: color.tabla,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: color.regla,
-  },
   cuentaCorreo: { color: color.tinta, marginTop: espacio.sm },
   cuentaNota: { color: color.tintaMedia, marginTop: espacio.xs },
+  aviso: { marginBottom: espacio.md },
 });
