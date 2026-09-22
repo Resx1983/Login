@@ -1,46 +1,85 @@
+import { Feather } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useAuth } from '../context/AuthContext';
 import { RootStackParamList } from '../types';
+import { Placa } from '../ui/componentes';
+import { ONDA, TOQUE_MINIMO, color, espacio, texto } from '../ui/tema';
+import { PestanasAdmin, PestanasCliente } from './Pestanas';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
-export default function Home({ navigation, route }: Props) {
+/**
+ * El armazón de la sesión: quién eres arriba, tu trabajo abajo.
+ *
+ * Cada rol ve solo sus pestañas — el admin nunca navega por pantallas de
+ * cliente para hacer lo suyo, ni al revés.
+ */
+export default function Home({ navigation }: Props) {
+  const { usuario, logout } = useAuth();
+  const inset = useSafeAreaInsets();
+
+  if (!usuario) return null;
+
+  const esAdmin = usuario.rol === 'admin';
+
+  const salir = () => {
+    logout();
+    navigation.replace('Login');
+  };
+
   return (
-    <View style={styles.container}>
-      <View style={styles.content}>
-        <Text style={styles.eyebrow}>Sesión iniciada</Text>
-        <Text style={styles.title}>Bienvenido</Text>
-        <Text style={styles.email}>{route.params.email}</Text>
-        <Text style={styles.subtitle}>Ya puedes comenzar a usar la aplicación.</Text>
-        <TouchableOpacity
-          style={styles.logoutButton}
-          onPress={() => navigation.replace('Login')}
+    <View style={s.pantalla}>
+      <View style={[s.cabecera, { paddingTop: inset.top + espacio.md }]}>
+        <View style={s.identidad}>
+          <Placa>{esAdmin ? 'Administración' : 'Mi cuenta'}</Placa>
+          <Text style={[texto.titulo, s.correo]} numberOfLines={1}>
+            {usuario.email}
+          </Text>
+        </View>
+
+        <Pressable
+          onPress={salir}
+          accessibilityRole="button"
+          accessibilityLabel="Cerrar sesión"
+          android_ripple={ONDA}
+          style={({ pressed }) => [s.salir, pressed && s.salirPresionado]}
         >
-          <Text style={styles.logoutText}>Cerrar sesión</Text>
-        </TouchableOpacity>
+          <Feather name="log-out" size={16} color={color.tinta} />
+          <Text style={[texto.placa, s.salirTexto]}>Salir</Text>
+        </Pressable>
       </View>
+
+      {esAdmin ? <PestanasAdmin /> : <PestanasCliente />}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0f172a',
-    justifyContent: 'center',
-    padding: 20,
+const s = StyleSheet.create({
+  pantalla: { flex: 1, backgroundColor: color.tabla },
+  cabecera: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    paddingHorizontal: espacio.base,
+    paddingBottom: espacio.md,
+    backgroundColor: color.lamina,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: color.regla,
   },
-  content: { width: '100%', maxWidth: 420, alignSelf: 'center' },
-  eyebrow: { color: '#93c5fd', fontSize: 14, fontWeight: '700', marginBottom: 8 },
-  title: { color: '#f8fafc', fontSize: 36, fontWeight: '800', marginBottom: 8 },
-  email: { color: '#bfdbfe', fontSize: 18, marginBottom: 16 },
-  subtitle: { color: '#cbd5e1', fontSize: 16, marginBottom: 28 },
-  logoutButton: {
-    backgroundColor: '#3b82f6',
-    borderRadius: 12,
-    paddingVertical: 14,
+  identidad: { flex: 1, marginRight: espacio.md },
+  correo: { color: color.tinta, marginTop: espacio.xs },
+  salir: {
+    flexDirection: 'row',
     alignItems: 'center',
+    minHeight: TOQUE_MINIMO,
+    paddingHorizontal: espacio.md,
+    borderWidth: 1.5,
+    borderColor: color.tinta,
+    overflow: 'hidden',
   },
-  logoutText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  salirPresionado: { backgroundColor: color.tabla },
+  salirTexto: { color: color.tinta, marginLeft: espacio.sm, fontSize: 11 },
 });
