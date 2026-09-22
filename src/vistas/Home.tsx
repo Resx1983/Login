@@ -1,141 +1,85 @@
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { Feather } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Text, TouchableOpacity, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '../context/AuthContext';
 import { RootStackParamList } from '../types';
-import AdminCuentas from './admin/AdminCuentas';
-import Inventario from './admin/Inventario';
-import ListadoClientes from './admin/ListadoClientes';
-import Compra from './cliente/Compra';
-import Perfil from './cliente/Perfil';
-import Productos from './cliente/Productos';
+import { Placa } from '../ui/componentes';
+import { ONDA, TOQUE_MINIMO, color, espacio, texto } from '../ui/tema';
+import { PestanasAdmin, PestanasCliente } from './Pestanas';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
-const Tab = createBottomTabNavigator();
-
-// ── Iconos simples con emoji ─────────────────────────────────────────────────
-function TabIcon({ label, focused }: { label: string; focused: boolean }) {
-  const icons: Record<string, string> = {
-    Usuarios: '👥',
-    Clientes: '🗂️',
-    Inventario: '📦',
-    'Mi Perfil': '👤',
-    Productos: '🛍️',
-    'Mi Compra': '🛒',
-  };
-  return (
-    <Text style={{ fontSize: focused ? 22 : 20, opacity: focused ? 1 : 0.5 }}>
-      {icons[label] ?? '📄'}
-    </Text>
-  );
-}
-
-// ── Tabs para Admin ──────────────────────────────────────────────────────────
-function AdminTabs() {
-  return (
-    <Tab.Navigator
-      screenOptions={({ route }) => ({
-        headerShown: false,
-        tabBarStyle: styles.tabBar,
-        tabBarActiveTintColor: '#60a5fa',
-        tabBarInactiveTintColor: '#64748b',
-        tabBarLabelStyle: styles.tabLabel,
-        tabBarIcon: ({ focused }) => <TabIcon label={route.name} focused={focused} />,
-      })}
-    >
-      <Tab.Screen name="Usuarios" component={AdminCuentas} />
-      <Tab.Screen name="Clientes" component={ListadoClientes} />
-      <Tab.Screen name="Inventario" component={Inventario} />
-    </Tab.Navigator>
-  );
-}
-
-// ── Tabs para Cliente ────────────────────────────────────────────────────────
-function ClienteTabs() {
-  return (
-    <Tab.Navigator
-      screenOptions={({ route }) => ({
-        headerShown: false,
-        tabBarStyle: styles.tabBar,
-        tabBarActiveTintColor: '#60a5fa',
-        tabBarInactiveTintColor: '#64748b',
-        tabBarLabelStyle: styles.tabLabel,
-        tabBarIcon: ({ focused }) => <TabIcon label={route.name} focused={focused} />,
-      })}
-    >
-      <Tab.Screen name="Mi Perfil" component={Perfil} />
-      <Tab.Screen name="Productos" component={Productos} />
-      <Tab.Screen name="Mi Compra" component={Compra} />
-    </Tab.Navigator>
-  );
-}
-
-// ── Shell principal ──────────────────────────────────────────────────────────
+/**
+ * El armazón de la sesión: quién eres arriba, tu trabajo abajo.
+ *
+ * Cada rol ve solo sus pestañas — el admin nunca navega por pantallas de
+ * cliente para hacer lo suyo, ni al revés.
+ */
 export default function Home({ navigation }: Props) {
   const { usuario, logout } = useAuth();
+  const inset = useSafeAreaInsets();
 
-  const handleLogout = () => {
+  if (!usuario) return null;
+
+  const esAdmin = usuario.rol === 'admin';
+
+  const salir = () => {
     logout();
     navigation.replace('Login');
   };
 
-  if (!usuario) return null;
-
   return (
-    <View style={styles.container}>
-      {/* Barra superior */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.headerTitle}>
-            {usuario.rol === 'admin' ? '⚙️ Panel Admin' : '🏠 Mi cuenta'}
+    <View style={s.pantalla}>
+      <View style={[s.cabecera, { paddingTop: inset.top + espacio.md }]}>
+        <View style={s.identidad}>
+          <Placa>{esAdmin ? 'Administración' : 'Mi cuenta'}</Placa>
+          <Text style={[texto.titulo, s.correo]} numberOfLines={1}>
+            {usuario.email}
           </Text>
-          <Text style={styles.headerEmail}>{usuario.email}</Text>
         </View>
-        <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
-          <Text style={styles.logoutText}>Salir</Text>
-        </TouchableOpacity>
+
+        <Pressable
+          onPress={salir}
+          accessibilityRole="button"
+          accessibilityLabel="Cerrar sesión"
+          android_ripple={ONDA}
+          style={({ pressed }) => [s.salir, pressed && s.salirPresionado]}
+        >
+          <Feather name="log-out" size={16} color={color.tinta} />
+          <Text style={[texto.placa, s.salirTexto]}>Salir</Text>
+        </Pressable>
       </View>
 
-      {/* Contenido por rol */}
-      <View style={styles.content}>
-        {usuario.rol === 'admin' ? <AdminTabs /> : <ClienteTabs />}
-      </View>
+      {esAdmin ? <PestanasAdmin /> : <PestanasCliente />}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f172a' },
-  header: {
+const s = StyleSheet.create({
+  pantalla: { flex: 1, backgroundColor: color.tabla },
+  cabecera: {
     flexDirection: 'row',
+    alignItems: 'flex-end',
     justifyContent: 'space-between',
+    paddingHorizontal: espacio.base,
+    paddingBottom: espacio.md,
+    backgroundColor: color.lamina,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: color.regla,
+  },
+  identidad: { flex: 1, marginRight: espacio.md },
+  correo: { color: color.tinta, marginTop: espacio.xs },
+  salir: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 52,
-    paddingBottom: 14,
-    backgroundColor: '#111827',
-    borderBottomWidth: 1,
-    borderBottomColor: '#1f2937',
+    minHeight: TOQUE_MINIMO,
+    paddingHorizontal: espacio.md,
+    borderWidth: 1.5,
+    borderColor: color.tinta,
+    overflow: 'hidden',
   },
-  headerTitle: { color: '#f8fafc', fontSize: 18, fontWeight: '700' },
-  headerEmail: { color: '#94a3b8', fontSize: 13, marginTop: 2 },
-  logoutBtn: {
-    backgroundColor: '#1f2937',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 10,
-  },
-  logoutText: { color: '#f87171', fontWeight: '700', fontSize: 14 },
-  content: { flex: 1 },
-  tabBar: {
-    backgroundColor: '#111827',
-    borderTopColor: '#1f2937',
-    borderTopWidth: 1,
-    paddingBottom: 6,
-    paddingTop: 6,
-    height: 62,
-  },
-  tabLabel: { fontSize: 11, fontWeight: '600' },
+  salirPresionado: { backgroundColor: color.tabla },
+  salirTexto: { color: color.tinta, marginLeft: espacio.sm, fontSize: 11 },
 });

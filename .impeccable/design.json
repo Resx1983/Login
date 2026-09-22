@@ -1,0 +1,406 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-22T15:35:00.407Z",
+  "title": "Design System: Tablero de Precios",
+  "extensions": {
+    "colorMeta": {
+      "tabla": {
+        "role": "neutral",
+        "displayName": "Primed Board",
+        "purpose": "Screen ground and navigation-theme background; the board everything is painted on.",
+        "canonical": "#F2F1EC",
+        "tonalRamp": [
+          "#2D2B1F",
+          "#4F4B36",
+          "#706A4D",
+          "#918A63",
+          "#AAA483",
+          "#C1BCA4",
+          "#DCD9CC",
+          "#F5F4F0"
+        ]
+      },
+      "lamina": {
+        "role": "neutral",
+        "displayName": "Sheet",
+        "purpose": "Content surface: rows, headers, tab bar. Always bounded by hairline seams, never floating.",
+        "canonical": "#FFFFFF",
+        "tonalRamp": [
+          "#262626",
+          "#424242",
+          "#5E5E5E",
+          "#7A7A7A",
+          "#969696",
+          "#B3B3B3",
+          "#D4D4D4",
+          "#F2F2F2"
+        ]
+      },
+      "tinta": {
+        "role": "primary",
+        "displayName": "Enamel Ink",
+        "purpose": "Headlines, figures, primary button plate, 1.5px interactive outlines.",
+        "canonical": "#15140F",
+        "tonalRamp": [
+          "#2D2A20",
+          "#4D4A37",
+          "#6E694F",
+          "#8F8866",
+          "#A8A285",
+          "#BFBBA6",
+          "#DBD8CC",
+          "#F4F4F0"
+        ]
+      },
+      "tintaMedia": {
+        "role": "neutral",
+        "displayName": "Secondary Ink",
+        "purpose": "Supporting text, placeholders, Placa labels, inactive tabs, consequence lines.",
+        "canonical": "#55534B",
+        "tonalRamp": [
+          "#292824",
+          "#46453E",
+          "#646258",
+          "#827F73",
+          "#9D9A90",
+          "#B7B5AE",
+          "#D6D5D1",
+          "#F3F3F1"
+        ]
+      },
+      "tintaTenue": {
+        "role": "neutral",
+        "displayName": "Faint Ink",
+        "purpose": "Reserved for text 19px and larger; clears 3:1, not 4.5:1. Currently unused in screens.",
+        "canonical": "#7E7C72",
+        "tonalRamp": [
+          "#282824",
+          "#46453F",
+          "#63615A",
+          "#817E74",
+          "#9C9A91",
+          "#B6B5AF",
+          "#D6D5D1",
+          "#F3F3F2"
+        ]
+      },
+      "regla": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "purpose": "Every seam, divider, surface edge and resting field border.",
+        "canonical": "#D7D5CC",
+        "tonalRamp": [
+          "#2B2922",
+          "#4A473A",
+          "#6A6653",
+          "#89846C",
+          "#A39E8A",
+          "#BCB8A9",
+          "#D9D7CE",
+          "#F4F3F1"
+        ]
+      },
+      "flash": {
+        "role": "secondary",
+        "displayName": "Signwriter Yellow",
+        "purpose": "Selection and active state only. Three runtime places: Selector fill, quantity plate, active tab plate.",
+        "canonical": "#FFD400",
+        "tonalRamp": [
+          "#4D4000",
+          "#856E00",
+          "#BD9D00",
+          "#F5CC00",
+          "#FFDC2E",
+          "#FFE566",
+          "#FFF0A8",
+          "#FFFBE5"
+        ]
+      },
+      "alerta": {
+        "role": "tertiary",
+        "displayName": "Enamel Red",
+        "purpose": "Danger and error only. Error Aviso plate, error field, Agotado, rejected-purchase rule.",
+        "canonical": "#A81E14",
+        "tonalRamp": [
+          "#440C08",
+          "#76150E",
+          "#A91E14",
+          "#DB271A",
+          "#E94F44",
+          "#EF7E76",
+          "#F6B6B2",
+          "#FCEAE8"
+        ]
+      },
+      "espera": {
+        "role": "tertiary",
+        "displayName": "Ochre",
+        "purpose": "Pending and low stock only. Marca tono=\"espera\".",
+        "canonical": "#7A4E00",
+        "tonalRamp": [
+          "#4D3100",
+          "#855500",
+          "#BD7900",
+          "#F59D00",
+          "#FFB42E",
+          "#FFC866",
+          "#FFE0A8",
+          "#FFF6E5"
+        ]
+      },
+      "sobreTinta": {
+        "role": "primary",
+        "displayName": "Board Ink Reverse",
+        "purpose": "Text and icons on a tinta or alerta plate. Never a background.",
+        "canonical": "#FBFAF6",
+        "tonalRamp": [
+          "#352F18",
+          "#5C5229",
+          "#83743A",
+          "#A9974B",
+          "#BFAF6E",
+          "#D0C495",
+          "#E4DEC3",
+          "#F7F5ED"
+        ]
+      },
+      "inerte": {
+        "role": "neutral",
+        "displayName": "Inert Plate",
+        "purpose": "Fill of a disabled control. Disabled is a token pair, never an opacity.",
+        "canonical": "#CFCDC3",
+        "tonalRamp": [
+          "#2B2922",
+          "#4A473B",
+          "#696554",
+          "#88836D",
+          "#A29E8B",
+          "#BBB8AA",
+          "#D8D7CF",
+          "#F4F3F1"
+        ]
+      },
+      "sobreInerte": {
+        "role": "neutral",
+        "displayName": "Inert Reverse",
+        "purpose": "Text, icon and border on a disabled control. 6.73:1 on inerte.",
+        "canonical": "#3F3E38",
+        "tonalRamp": [
+          "#292824",
+          "#46453E",
+          "#646259",
+          "#828073",
+          "#9D9B90",
+          "#B7B6AE",
+          "#D6D5D1",
+          "#F3F3F2"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "mega": {
+        "displayName": "Mega",
+        "purpose": "The one figure of the screen. Login wordmark, order total, confirmation number. One per screen, never two. No literal lineHeight."
+      },
+      "gigante": {
+        "displayName": "Gigante",
+        "purpose": "Default Cabecera size and the unit price in every product row. The figure that carries the list. No literal lineHeight."
+      },
+      "grande": {
+        "displayName": "Grande",
+        "purpose": "Cabecera tamano=\"grande\", the chosen quantity on the yellow plate, the edit-sheet title. No literal lineHeight."
+      },
+      "titulo": {
+        "displayName": "Titulo",
+        "purpose": "Line subtotals, signed-in email, the initial plate, Vacio headings. No literal lineHeight."
+      },
+      "cuerpo": {
+        "displayName": "Cuerpo",
+        "purpose": "Paragraph text and the text inside Campo."
+      },
+      "cuerpoFuerte": {
+        "displayName": "Cuerpo Fuerte",
+        "purpose": "The title line of every FilaRegistro."
+      },
+      "menor": {
+        "displayName": "Menor",
+        "purpose": "Row support text, Cabecera support line, consequence sentence, Enlace (underlined)."
+      },
+      "placa": {
+        "displayName": "Placa",
+        "purpose": "The signwritten cap label. Placa, button labels (13px/1.1), Marca, Aviso (12px), tab labels (11px/0.9)."
+      }
+    },
+    "shadows": [],
+    "motion": [
+      {
+        "name": "MS",
+        "value": "180ms linear",
+        "purpose": "The single transition duration in the system. Selector yellow wipe (opacity + scaleX, useNativeDriver). There is no second duration and no easing curve token."
+      },
+      {
+        "name": "reduce-motion",
+        "value": "0ms",
+        "purpose": "useMenosMovimiento() reads AccessibilityInfo.isReduceMotionEnabled and subscribes to changes; duration collapses to 0 and the Inventario modal switches animationType to \"none\". The yellow fill still appears, instantly."
+      },
+      {
+        "name": "press-feedback",
+        "value": "opacity 0.6 / 0.7 / 0.75",
+        "purpose": "Press is the only thing opacity expresses: step buttons 0.6, rows 0.7, buttons 0.75. Android adds a ripple rgba(21,20,15,0.12), or rgba(251,250,246,0.18) on an ink plate. Disabled never uses opacity."
+      }
+    ],
+    "breakpoints": []
+  },
+  "components": [
+    {
+      "name": "Boton tinta (primary)",
+      "kind": "button",
+      "refersTo": "boton-tinta",
+      "description": "The one primary action of a screen, docked in the thumb zone. Ink plate, no radius, no shadow.",
+      "html": "<button class=\"ds-boton ds-boton-tinta\">CONFIRMAR · $12.500,00</button>",
+      "css": ".ds-boton{font-family:\"Archivo\",sans-serif;font-weight:700;font-size:13px;letter-spacing:1.1px;text-transform:uppercase;min-height:48px;padding:0 20px;border:none;border-radius:0;cursor:pointer;transition:opacity 180ms linear;}.ds-boton-tinta{background:#15140F;color:#FBFAF6;}.ds-boton-tinta:hover{opacity:.9;}.ds-boton-tinta:active{opacity:.75;}.ds-boton-tinta:focus-visible{outline:2px solid #15140F;outline-offset:2px;}"
+    },
+    {
+      "name": "Boton contorno (secondary)",
+      "kind": "button",
+      "refersTo": "boton-contorno",
+      "description": "Secondary path. 1.5px ink frame, transparent fill. Disabled becomes an outlined INERT PLATE, never a transparent outline.",
+      "html": "<button class=\"ds-boton ds-boton-contorno\">CANCELAR</button> <button class=\"ds-boton ds-boton-contorno\" disabled>CANCELAR</button>",
+      "css": ".ds-boton-contorno{background:transparent;color:#15140F;border:1.5px solid #15140F;}.ds-boton-contorno:hover{opacity:.9;}.ds-boton-contorno:active{opacity:.75;}.ds-boton-contorno:focus-visible{outline:2px solid #15140F;outline-offset:2px;}.ds-boton-contorno:disabled{background:#CFCDC3;color:#3F3E38;border-color:#3F3E38;opacity:1;cursor:default;}"
+    },
+    {
+      "name": "Campo (text field)",
+      "kind": "input",
+      "refersTo": "campo",
+      "description": "Placa label above, 1px hairline border at rest, 2px ink border on focus with padding compensated so the text never shifts.",
+      "html": "<div class=\"ds-campo\"><span class=\"ds-campo-rotulo\">Precio</span><input class=\"ds-campo-entrada\" placeholder=\"0.00\"></div>",
+      "css": ".ds-campo{display:block;margin-bottom:20px;}.ds-campo-rotulo{display:block;font-family:\"Archivo\",sans-serif;font-weight:700;font-size:11px;line-height:16px;letter-spacing:1.3px;text-transform:uppercase;color:#55534B;margin-bottom:8px;}.ds-campo-entrada{width:100%;box-sizing:border-box;min-height:48px;padding:12px;border:1px solid #D7D5CC;border-radius:0;background:#FFFFFF;color:#15140F;font-family:\"Archivo\",sans-serif;font-size:16px;line-height:23px;}.ds-campo-entrada::placeholder{color:#55534B;}.ds-campo-entrada:focus{outline:none;border:2px solid #15140F;padding:12px 11px;}.ds-campo-entrada[aria-invalid=\"true\"]{border:2px solid #A81E14;padding:12px 11px;}.ds-campo-entrada:disabled{background:#CFCDC3;color:#3F3E38;}"
+    },
+    {
+      "name": "FilaRegistro (the one row grid)",
+      "kind": "card",
+      "refersTo": "fila-registro",
+      "description": "The only record grid in the app: adorno | (titulo / apoyo / cifra / marca) | derecha, on a sheet, closed by a hairline seam inset 16px.",
+      "html": "<div class=\"ds-fila\"><div class=\"ds-fila-texto\"><div class=\"ds-fila-titulo\">Café molido 500g</div><div class=\"ds-fila-apoyo\">Tueste medio · bolsa sellada</div><div class=\"ds-fila-cifra\">$12.500,00</div><div><span class=\"ds-marca ds-marca-espera\">Quedan 3</span></div></div><div class=\"ds-fila-derecha\">›</div></div><div class=\"ds-regla\"></div>",
+      "css": ".ds-fila{display:flex;align-items:center;background:#FFFFFF;padding:16px;min-height:48px;box-sizing:border-box;}.ds-fila:active{opacity:.7;}.ds-fila-texto{flex:1;}.ds-fila-titulo{font-family:\"Archivo\",sans-serif;font-weight:600;font-size:16px;line-height:23px;color:#15140F;}.ds-fila-apoyo{font-family:\"Archivo\",sans-serif;font-weight:500;font-size:14px;line-height:20px;color:#55534B;margin-top:4px;}.ds-fila-cifra{font-family:\"Archivo\",sans-serif;font-weight:900;font-size:32px;letter-spacing:-0.9px;color:#15140F;font-variant-numeric:tabular-nums;margin-top:8px;}.ds-fila-derecha{margin-left:16px;color:#55534B;}.ds-regla{height:1px;background:#D7D5CC;margin-left:16px;}"
+    },
+    {
+      "name": "Selector (signature interaction)",
+      "kind": "chip",
+      "refersTo": "selector-opcion",
+      "description": "Radio group inside one 1.5px ink frame. The signwriter yellow wipes in behind the chosen label over 180ms; instant when reduce-motion is on.",
+      "html": "<div class=\"ds-selector\" role=\"radiogroup\"><button class=\"ds-opcion ds-opcion-activa\" role=\"radio\" aria-checked=\"true\">CLIENTE</button><button class=\"ds-opcion\" role=\"radio\" aria-checked=\"false\">ADMIN</button></div>",
+      "css": ".ds-selector{display:flex;border:1.5px solid #15140F;border-radius:0;}.ds-opcion{flex:1;min-height:48px;border:none;background:transparent;color:#55534B;font-family:\"Archivo\",sans-serif;font-weight:700;font-size:12px;letter-spacing:1.3px;text-transform:uppercase;cursor:pointer;transition:background 180ms linear,color 180ms linear;}.ds-opcion:hover{background:#F2F1EC;}.ds-opcion:focus-visible{outline:2px solid #15140F;outline-offset:-4px;}.ds-opcion-activa{background:#FFD400;color:#15140F;}.ds-opcion-activa:hover{background:#FFD400;}"
+    },
+    {
+      "name": "Marca (state chip)",
+      "kind": "chip",
+      "refersTo": "marca",
+      "description": "A boxed cap label. The word is mandatory — this is where \"no state by colour alone\" is enforced structurally.",
+      "html": "<span class=\"ds-marca\">12 en stock</span> <span class=\"ds-marca ds-marca-espera\">En espera</span> <span class=\"ds-marca ds-marca-alerta\">Agotado</span>",
+      "css": ".ds-marca{display:inline-block;border:1px solid #55534B;color:#55534B;border-radius:0;padding:3px 8px;font-family:\"Archivo\",sans-serif;font-weight:700;font-size:11px;line-height:16px;letter-spacing:1.3px;text-transform:uppercase;}.ds-marca-espera{border-color:#7A4E00;color:#7A4E00;}.ds-marca-alerta{border-color:#A81E14;color:#A81E14;}"
+    },
+    {
+      "name": "Aviso (transient notice)",
+      "kind": "custom",
+      "refersTo": "aviso-ok",
+      "description": "Confirmation is a sheet with a 1.5px ink edge — it deliberately does not use yellow, which belongs to selection. Error takes the solid red plate.",
+      "html": "<div class=\"ds-aviso ds-aviso-ok\" role=\"status\">Café molido actualizado</div><div class=\"ds-aviso ds-aviso-error\" role=\"alert\">No se pudo guardar el producto</div>",
+      "css": ".ds-aviso{display:flex;align-items:center;padding:12px 16px;border-radius:0;font-family:\"Archivo\",sans-serif;font-weight:700;font-size:12px;letter-spacing:1.3px;text-transform:uppercase;margin-bottom:8px;}.ds-aviso-ok{background:#FFFFFF;border:1.5px solid #15140F;color:#15140F;}.ds-aviso-error{background:#A81E14;color:#FBFAF6;}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Tablero de Precios",
+    "overview": "The world is the hand-painted price board of a market stall, translated to flat ink: primed board, enamel ink, hairline rules, and one signwriter yellow that marks exactly one thing per screen. The direction contract at the top of App.tsx states the thesis in one line — la cifra manda: the price, the stock and the total are the largest ink on every screen. It was written against two predictable alternatives and both were rejected by name: the dark panel with rounded cards and a blue accent that this category always ships, and its obvious opposite, the white board of grey cards with an indigo accent.\n\nDepth in this world comes from the rule, never from elevation. There are no shadows, no elevation, and no corner radius anywhere in the codebase — a grep for shadow, elevation and borderRadius across src/ returns only RADIO, which is 0. Surfaces separate by a StyleSheet.hairlineWidth seam in regla (#D7D5CC) against lamina (#FFFFFF) on the tabla (#F2F1EC) ground. The whole system is almost monochrome, and the direction contract records this as its own honest risk: everything rests on the scale jump between the 11px tracked cap label and the 32–46px black figure. Soften that jump and this is just a grey app.\n\nDensity is counter density: short sessions, standing, one hand, variable ambient light. Groups are tight (4–12px), separations are generous (24–44px), every touch target is at least 48dp, and the one primary action of each screen sits docked in the thumb zone at the bottom of the screen.",
+    "keyCharacteristics": [
+      "Flat ink on primed board — zero shadows, zero elevation, zero radius, system-wide.",
+      "Hairline seams (StyleSheet.hairlineWidth in regla) are the only separator.",
+      "Two typographic extremes only: 11px tracked uppercase placa vs 24–46px Archivo_900Black figures.",
+      "One signwriter yellow (flash) reserved to selection; it appears in exactly three runtime places.",
+      "One row grid (FilaRegistro) for every record in the app.",
+      "One primary action per screen, always docked at the bottom.",
+      "No state depends on colour alone; every coloured state carries a word, a weight or a rule."
+    ],
+    "rules": [
+      {
+        "name": "The One Yellow Rule",
+        "section": "colors",
+        "body": "flash marks selection or active state and nothing else. It appears in at most one place per screen. If you are reaching for yellow to make something feel important, you want scale, not colour — make the figure bigger."
+      },
+      {
+        "name": "The Never-Colour-Alone Rule",
+        "section": "colors",
+        "body": "No state is communicated by colour alone. Marca always carries the word, the error Campo carries an icon plus a message, the active selector option carries a filled plate and accessibilityState, and the active tab carries a plate behind the icon."
+      },
+      {
+        "name": "The Runnable Contrast Rule",
+        "section": "colors",
+        "body": "src/ui/contraste.check.mjs parses the hex values straight out of tema.ts and asserts every colour-on-colour pair the app actually uses. It currently reports 14 pairs verified, all pass. Run node src/ui/contraste.check.mjs after touching the palette; adding a colour pair to the UI means adding its row to PARES."
+      },
+      {
+        "name": "The Family-Carries-Weight Rule",
+        "section": "typography",
+        "body": "Weight is selected by font family name only (fuente.black, bold, semi, media, regular). Never write fontWeight — with self-hosted named families React Native ignores it and you silently get the wrong face."
+      },
+      {
+        "name": "The No-Literal-LineHeight-On-Figures Rule",
+        "section": "typography",
+        "body": "mega, gigante, grande and titulo carry no lineHeight on purpose: at system font scale a fixed line box clips the figure, while the font metrics scale with it. Only cuerpo (16/23), menor (14/20) and placa (11/16) keep literal line heights."
+      },
+      {
+        "name": "The Tabular Figures Rule",
+        "section": "typography",
+        "body": "Any number read in a column takes CIFRAS_TABULARES (fontVariant tabular-nums). Money is always produced by dinero() from tema.ts, the single place the currency symbol and locale live."
+      },
+      {
+        "name": "The Never-Naked-Figure Rule",
+        "section": "typography",
+        "body": "A quantity never stands alone. The discipline splits by screen on purpose: Productos is forward-looking (\"Quedan N si confirmas\") because that is where quantity is chosen; Compra carries provenance (\"de N que había al agregarlo\") because that is where the order is reviewed and the cart holds a snapshot, not live stock. The confirm transaction re-verifies stock before writing."
+      },
+      {
+        "name": "The One Primary Action Rule",
+        "section": "layout",
+        "body": "Exactly one Boton tipo=\"tinta\" per screen, in the footer dock. Secondary paths are Enlace, Boton tipo=\"contorno\", or a bordered inline control."
+      },
+      {
+        "name": "The Isolated Consequence Rule",
+        "section": "layout",
+        "body": "An irreversible action is separated from the content above it by deliberate empty space and preceded by a menor/tintaMedia sentence stating what will happen. The button label then restates the stake."
+      },
+      {
+        "name": "The Seam-Not-Shadow Rule",
+        "section": "elevation",
+        "body": "If you need to separate two surfaces, add a Regla or a hairline border. Never add a shadow, never add elevation. A shadow anywhere in this app is a defect."
+      },
+      {
+        "name": "The Opacity-Is-Not-A-State Rule",
+        "section": "elevation",
+        "body": "Opacity expresses press only (0.6 / 0.7 / 0.75). Disabled is expressed with the inerte / sobreInerte token pair — measured opacity collapsed the composited text contrast to about 1.6:1."
+      }
+    ],
+    "dos": [
+      "Do build every new record list from FilaRegistro. It is the one row grid in the app; a new list style is a system violation, not a local choice.",
+      "Do separate surfaces with Regla or a StyleSheet.hairlineWidth border in color.regla.",
+      "Do put the screen’s one primary action in the footer dock: absolutely positioned at bottom: 0, padding espacio.base, backgroundColor color.tabla, hairline top border, with paddingBottom 96 reserved on the list behind it.",
+      "Do make the money, the stock or the total the largest ink on the screen — gigante in a row, mega for the single screen figure — and give it CIFRAS_TABULARES.",
+      "Do format every currency value through dinero() from tema.ts. The symbol and locale are a placeholder pending a business decision and must change in exactly one place.",
+      "Do pair every coloured state with a word: Marca with its label, an error field with its message, a selected option with its filled plate.",
+      "Do state the consequence above an irreversible action and restate the stake in the button label, with deliberate empty space isolating it.",
+      "Do run node src/ui/contraste.check.mjs after any palette change, and add a row to PARES for any new colour-on-colour pair you introduce.",
+      "Do honour useMenosMovimiento() in anything that animates.",
+      "Do keep every touch target at TOQUE_MINIMO (48) or larger."
+    ],
+    "donts": [
+      "Don’t add a shadow, an elevation, or a borderRadius. RADIO is 0 and exists so the answer is already written down.",
+      "Don’t introduce a new accent colour, and don’t spend flash on anything but selection. It is currently in three runtime places; a fourth needs to replace one of them, not join them.",
+      "Don’t use alerta for emphasis or espera for general warnings. Red is danger and error only; ochre is pending and low stock only.",
+      "Don’t express disabled with opacity. Use the inerte / sobreInerte pair — opacity measured at roughly 1.6:1 composited contrast.",
+      "Don’t write fontWeight. Select the face by family name from fuente.",
+      "Don’t add a literal lineHeight to mega, gigante, grande or titulo; the figure must be free to grow with the system font scale.",
+      "Don’t define a colour, a size or a spacing value inline in a screen. If it is not in tema.ts, it is not in the system.",
+      "Don’t place a critical action in a top corner. The product is used standing, one-handed.",
+      "Don’t hard-code a tab bar height or a status bar height; use useSafeAreaInsets() and let React Navigation derive the bar.",
+      "Don’t claim live stock on a review surface. Compra shows provenance because the cart holds a snapshot; only the confirm transaction re-reads the database."
+    ]
+  }
+}

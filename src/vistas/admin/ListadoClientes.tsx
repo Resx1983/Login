@@ -1,13 +1,10 @@
 import { useSQLiteContext } from 'expo-sqlite';
-import { useCallback, useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { useCallback, useState } from 'react';
+import { FlatList, StyleSheet, Text, View } from 'react-native';
+
+import { useRecargarAlEnfocar } from '../../hooks/useRecargarAlEnfocar';
+import { Cabecera, Cargando, FilaRegistro, Marca, Vacio, refresco } from '../../ui/componentes';
+import { color, espacio, texto } from '../../ui/tema';
 
 type ClienteConCorreo = {
   Id: number;
@@ -20,116 +17,77 @@ type ClienteConCorreo = {
 export default function ListadoClientes() {
   const db = useSQLiteContext();
   const [clientes, setClientes] = useState<ClienteConCorreo[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const [cargando, setCargando] = useState(true);
+  const [refrescando, setRefrescando] = useState(false);
 
   const cargar = useCallback(async () => {
     const rows = await db.getAllAsync<ClienteConCorreo>(`
-      SELECT
-        c.Id,
-        c.Nombre,
-        c.Apellido,
-        c.Correo,
-        l.Correo AS LoginCorreo
-      FROM CLIENTES c
-      JOIN LOGIN l ON l.Id = c.IdLogin
-      ORDER BY c.Apellido, c.Nombre
+      SELECT c.Id, c.Nombre, c.Apellido, c.Correo, l.Correo AS LoginCorreo
+        FROM CLIENTES c
+        JOIN LOGIN l ON l.Id = c.IdLogin
+       ORDER BY c.Apellido, c.Nombre
     `);
     setClientes(rows);
-    setLoading(false);
-    setRefreshing(false);
+    setCargando(false);
+    setRefrescando(false);
   }, [db]);
 
-  useEffect(() => { cargar(); }, [cargar]);
+  useRecargarAlEnfocar(cargar);
 
-  if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#3b82f6" />
-      </View>
-    );
-  }
+  if (cargando) return <Cargando />;
 
   return (
     <FlatList
-      style={styles.container}
+      style={s.pantalla}
       data={clientes}
       keyExtractor={(item) => String(item.Id)}
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={() => { setRefreshing(true); cargar(); }}
-          tintColor="#3b82f6"
+      refreshControl={refresco(refrescando, () => { setRefrescando(true); cargar(); })}
+      ListHeaderComponent={
+        <Cabecera
+          rotulo="Clientes"
+          titulo={String(clientes.length).padStart(2, '0')}
+          apoyo="Solo aparecen las cuentas que ya completaron su perfil."
         />
       }
-      ListHeaderComponent={
-        <Text style={styles.sectionTitle}>🗂️ Listado de clientes ({clientes.length})</Text>
-      }
       ListEmptyComponent={
-        <View style={styles.emptyBox}>
-          <Text style={styles.emptyIcon}>👤</Text>
-          <Text style={styles.emptyText}>Aún no hay clientes registrados</Text>
-        </View>
+        <Vacio
+          icono="users"
+          titulo="Ningún perfil completo"
+          cuerpo="Un cliente aparece aquí en cuanto guarda su nombre y apellido desde la pestaña Perfil."
+        />
       }
-      renderItem={({ item }) => (
-        <View style={styles.card}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>
-              {(item.Nombre ?? item.LoginCorreo)[0].toUpperCase()}
-            </Text>
-          </View>
-          <View style={styles.info}>
-            <Text style={styles.nombre}>
-              {item.Nombre && item.Apellido
-                ? `${item.Nombre} ${item.Apellido}`
-                : '(Sin nombre)'
-              }
-            </Text>
-            <Text style={styles.correo}>{item.Correo ?? item.LoginCorreo}</Text>
-          </View>
-        </View>
-      )}
-      contentContainerStyle={styles.list}
+      renderItem={({ item, index }) => {
+        const completo = !!(item.Nombre && item.Apellido);
+        const inicial = (item.Nombre ?? item.LoginCorreo).trim()[0]?.toUpperCase() ?? '?';
+
+        return (
+          <FilaRegistro
+            titulo={completo ? `${item.Nombre} ${item.Apellido}` : 'Perfil sin nombre'}
+            apoyo={item.Correo ?? item.LoginCorreo}
+            ultima={index === clientes.length - 1}
+            marca={!completo ? <Marca tono="espera">Datos incompletos</Marca> : undefined}
+            adorno={
+              <View style={s.inicial}>
+                <Text style={[texto.titulo, s.inicialTexto]}>{inicial}</Text>
+              </View>
+            }
+          />
+        );
+      }}
+      contentContainerStyle={s.lista}
     />
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f172a' },
-  center: { flex: 1, backgroundColor: '#0f172a', justifyContent: 'center', alignItems: 'center' },
-  list: { padding: 16, paddingBottom: 40 },
-  sectionTitle: {
-    color: '#94a3b8',
-    fontSize: 13,
-    fontWeight: '700',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    marginBottom: 14,
-  },
-  card: {
-    backgroundColor: '#111827',
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#1f2937',
-  },
-  avatar: {
+const s = StyleSheet.create({
+  pantalla: { flex: 1, backgroundColor: color.tabla },
+  lista: { paddingBottom: espacio.xxxl },
+  inicial: {
     width: 44,
     height: 44,
-    borderRadius: 22,
-    backgroundColor: '#1e3a5f',
-    justifyContent: 'center',
+    backgroundColor: color.tinta,
     alignItems: 'center',
-    marginRight: 14,
+    justifyContent: 'center',
   },
-  avatarText: { color: '#60a5fa', fontSize: 18, fontWeight: '700' },
-  info: { flex: 1 },
-  nombre: { color: '#f8fafc', fontSize: 15, fontWeight: '600' },
-  correo: { color: '#64748b', fontSize: 13, marginTop: 2 },
-  emptyBox: { alignItems: 'center', paddingVertical: 60 },
-  emptyIcon: { fontSize: 48, marginBottom: 12 },
-  emptyText: { color: '#475569', fontSize: 15 },
+  inicialTexto: { color: color.sobreTinta },
 });
