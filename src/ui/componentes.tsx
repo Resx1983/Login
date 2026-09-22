@@ -33,5 +33,8 @@ export { Aviso } from './Aviso';
 export { Vacio, Cargando } from './estados';
 export { refresco } from './refresco';
 
+// Red de seguridad
+export { LimiteDeError } from './LimiteDeError';
+
 // Accesibilidad
 export { useMenosMovimiento } from './movimiento';

@@ -57,6 +57,7 @@ import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { CarritoProvider } from './src/context/CarritoContext';
 import { initDb } from './src/db';
 import { LoginRow, Rol, RootStackParamList } from './src/types';
+import { LimiteDeError } from './src/ui/componentes';
 import { color } from './src/ui/tema';
 import { esCorreoValido } from './src/validacion';
 import Home from './src/vistas/Home';
@@ -179,13 +180,17 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <SQLiteProvider databaseName="tienda.db" onInit={initDb}>
-        <AuthProvider>
-          <CarritoProvider>
-            <Navigation />
-          </CarritoProvider>
-        </AuthProvider>
-      </SQLiteProvider>
+      {/* Envuelve al proveedor de base de datos: si abrir tienda.db falla, esto
+          lo explica en vez de dejar la pantalla roja de React. */}
+      <LimiteDeError>
+        <SQLiteProvider databaseName="tienda.db" onInit={initDb}>
+          <AuthProvider>
+            <CarritoProvider>
+              <Navigation />
+            </CarritoProvider>
+          </AuthProvider>
+        </SQLiteProvider>
+      </LimiteDeError>
     </SafeAreaProvider>
   );
 }
