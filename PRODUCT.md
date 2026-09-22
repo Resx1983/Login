@@ -39,7 +39,10 @@ Prototipo de punto de venta que funciona entero en el teléfono, sin servidor: l
 
 ## Brand Commitments
 
-Ninguna. No existe nombre comercial, logotipo ni paleta heredada. Los íconos de `assets/` son los de la plantilla de Expo, no una identidad.
+- **Nombre: Tablero.** Elegido por el usuario. Viene del mundo visual de la app —el tablero de precios de un puesto de mercado— y describe lo que la app hace. `expo.name` es `Tablero`, `expo.slug` es `tablero`.
+- **Marca: la T de rotulista**, letra pesada y plana en el amarillo de selección `#FFD400` sobre la tinta esmalte `#15140F`. Sin degradado, sin esquina redondeada, sin sombra: la misma gramática que la interfaz.
+- Todos los PNG de `assets/` los genera `scripts/generar-iconos.mjs`, que lee la paleta de `src/ui/tema.ts`. No hay imágenes traídas de fuera ni editadas a mano; cambiar el logo es cambiar ese script y volver a ejecutarlo.
+- La pantalla de acceso rotula el nombre a tamaño de tablero. No hay más elementos de identidad comprometidos.
 
 ## Evidence on Hand
 

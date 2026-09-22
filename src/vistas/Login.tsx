@@ -54,11 +54,11 @@ export default function Login({ navigation, onLogin }: Props) {
       >
         {/* Rótulo del tablero: la tesis, a tamaño de tablero */}
         <View style={s.rotulo}>
-          <Text style={[texto.mega, s.palabra]}>PUNTO</Text>
-          <Text style={[texto.mega, s.palabra]}>DE</Text>
-          <Text style={[texto.mega, s.palabra]}>VENTA</Text>
+          <Text style={[texto.mega, s.palabra]} numberOfLines={1} adjustsFontSizeToFit>
+            TABLERO
+          </Text>
           <View style={s.reglaGruesa} />
-          <Placa>Inventario y ventas · sin conexión</Placa>
+          <Placa>Punto de venta · inventario y ventas sin conexión</Placa>
         </View>
 
         {/* Zona del pulgar */}
