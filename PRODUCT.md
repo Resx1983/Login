@@ -44,7 +44,8 @@ Ninguna. No existe nombre comercial, logotipo ni paleta heredada. Los íconos de
 ## Evidence on Hand
 
 - Cuenta administradora de prueba sembrada en la base: `demo@correo.com` / `Admin123`, estado `Activo`.
-- No hay catálogo de productos real, ni clientes reales, ni fotografías de producto. Todo dato de demostración debe quedar marcado como tal y no presentarse como inventario verdadero.
+- Catálogo de **demostración** de 10 productos de tienda, sembrado en `SEED_PRODUCTOS` (`src/db.ts`) solo cuando la tabla `PRODUCTOS` está vacía. Son datos inventados, no el inventario de ningún negocio: incluyen a propósito un agotado y uno con stock bajo para ejercitar los estados de la interfaz. Hay que borrarlos y cargar el catálogo real desde Inventario antes de cualquier uso verdadero.
+- No hay clientes reales ni fotografías de producto. Ningún otro dato de demostración debe presentarse como verdadero.
 
 ## Product Principles
 

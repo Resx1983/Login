@@ -104,7 +104,41 @@ async function runMigrations(db: SQLite.SQLiteDatabase) {
   );
 }
 
+/**
+ * Catálogo de DEMOSTRACIÓN. No es el inventario de ningún negocio real: son
+ * datos inventados para que la app arranque con algo que mirar y para ejercitar
+ * los estados de la interfaz — hay uno agotado y uno con stock bajo a propósito.
+ * Bórralos y carga los tuyos desde Inventario antes de usar esto de verdad.
+ *
+ * Los precios están en la divisa marcador que documenta PRODUCT.md.
+ */
+export const SEED_PRODUCTOS = `
+INSERT INTO PRODUCTOS (Nombre, Descripcion, ValorUnitario, Stock) VALUES
+  ('Café molido 500 g',    'Tostión media, bolsa con válvula',        18500, 24),
+  ('Arroz blanco 1 kg',    'Grano largo',                              4200, 40),
+  ('Aceite de girasol 1 L','Botella PET',                             12900, 18),
+  ('Azúcar 1 kg',          'Refinada',                                 4800, 30),
+  ('Leche entera 1 L',     'Larga vida, caja',                         3900, 36),
+  ('Panela 500 g',         'Bloque',                                   3200, 22),
+  ('Huevos AA x 30',       'Cubeta',                                  21500,  3),
+  ('Atún en agua 160 g',   'Lata',                                     5600, 15),
+  ('Jabón de barra 300 g', 'Para ropa',                                3400, 12),
+  ('Gaseosa 1.5 L',        'Botella retornable',                       6900,  0);
+`;
+
+/**
+ * Siembra el catálogo solo cuando la tabla está vacía: así no revive productos
+ * que alguien borró a propósito ni duplica nada al reabrir la app.
+ */
+async function sembrarProductos(db: SQLite.SQLiteDatabase) {
+  const fila = await db.getFirstAsync<{ n: number }>('SELECT COUNT(*) AS n FROM PRODUCTOS');
+  if (fila && fila.n === 0) {
+    await db.execAsync(SEED_PRODUCTOS);
+  }
+}
+
 export async function initDb(db: SQLite.SQLiteDatabase) {
   await db.execAsync(SCHEMA);
   await runMigrations(db);
+  await sembrarProductos(db);
 }
