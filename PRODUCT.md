@@ -34,7 +34,7 @@ Prototipo de punto de venta que funciona entero en el teléfono, sin servidor: l
 - **Datos:** tablas `LOGIN`, `CLIENTES`, `PRODUCTOS`, `ENCABEZADO`, `DETALLES` con claves foráneas activas y migraciones incrementales idempotentes en `src/db.ts`.
 - **Estados de cuenta:** `Pendiente` / `Activo`. Roles: `admin` / `cliente`.
 - **Moneda:** sin decidir. La app muestra hoy `$` con agrupación `es-CO` y dos decimales como **marcador**, centralizado en `dinero()` (`src/ui/tema.ts`); hay que confirmarlo con el negocio antes de usarlo con dinero real.
-- **Sin decidir:** nombre comercial del negocio, historial de compras para el cliente, edición de stock por venta manual del admin.
+- **Sin decidir:** nombre comercial del negocio que use la app, edición de stock por venta manual del admin, y si el administrador debe poder consultar los pedidos de todos los clientes (hoy cada cliente ve solo los suyos).
 - **Deuda conocida y no inventada como resuelta:** las contraseñas se guardan en texto plano. Es un prototipo; debe resolverse antes de cualquier uso con datos reales.
 
 ## Brand Commitments

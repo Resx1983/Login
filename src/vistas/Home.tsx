@@ -13,6 +13,7 @@ import AdminCuentas from './admin/AdminCuentas';
 import Inventario from './admin/Inventario';
 import ListadoClientes from './admin/ListadoClientes';
 import Compra from './cliente/Compra';
+import Pedidos from './cliente/Pedidos';
 import Perfil from './cliente/Perfil';
 import Productos from './cliente/Productos';
 
@@ -75,6 +76,11 @@ function PestanasCliente() {
           tabBarBadge: totalItems > 0 ? totalItems : undefined,
           tabBarBadgeStyle: s.insignia,
         }}
+      />
+      <Tab.Screen
+        name="Pedidos"
+        component={Pedidos}
+        options={{ tabBarIcon: ({ focused }) => <IconoPestana nombre="file-text" focused={focused} /> }}
       />
       <Tab.Screen
         name="Perfil"

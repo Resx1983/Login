@@ -1,5 +1,5 @@
 import { Feather } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -7,13 +7,14 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { useCarrito } from '../../context/CarritoContext';
 import { ClienteRow } from '../../types';
-import { Boton, Cargando, FilaRegistro, Placa, Vacio } from '../../ui/componentes';
+import { Boton, Cargando, Enlace, FilaRegistro, Placa, Vacio } from '../../ui/componentes';
 import { CIFRAS_TABULARES, TOQUE_MINIMO, color, dinero, espacio, texto } from '../../ui/tema';
 
 type CompraEstado = 'carrito' | 'confirmando' | 'exitosa' | 'error';
 
 export default function Compra() {
   const db = useSQLiteContext();
+  const navegacion = useNavigation<{ navigate: (pantalla: string) => void }>();
   const { usuario } = useAuth();
   const { items, quitarItem, limpiarCarrito, totalItems } = useCarrito();
   const [cliente, setCliente] = useState<ClienteRow | null>(null);
@@ -129,9 +130,14 @@ export default function Compra() {
           </Text>
         </View>
 
-        <Boton onPress={() => setEstado('carrito')} icono="plus">
-          Empezar otra compra
-        </Boton>
+        <View>
+          <Boton onPress={() => setEstado('carrito')} icono="plus">
+            Empezar otra compra
+          </Boton>
+          <Enlace onPress={() => { setEstado('carrito'); navegacion.navigate('Pedidos'); }}>
+            Ver todos mis pedidos
+          </Enlace>
+        </View>
       </View>
     );
   }
