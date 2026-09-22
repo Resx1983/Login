@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RootStackParamList } from '../types';
 import { Aviso, Boton, Campo, Enlace, Placa } from '../ui/componentes';
 import { color, espacio, texto } from '../ui/tema';
+import { esCorreoValido } from '../validacion';
 import { ReglasContrasena, primerFallo } from './ReglasContrasena';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Register'> & {
@@ -16,7 +17,7 @@ type Errores = { correo?: string; clave?: string; confirmacion?: string; general
 
 function validarCorreo(correo: string): string | null {
   if (!correo.trim()) return 'Escribe el correo con el que vas a entrar.';
-  if (!/\S+@\S+\.\S+/.test(correo.trim())) {
+  if (!esCorreoValido(correo)) {
     return 'Ese correo no tiene un formato válido. Revisa que incluya @ y un dominio.';
   }
   return null;

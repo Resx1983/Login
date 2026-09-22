@@ -6,7 +6,6 @@
  *   node src/ui/contraste.check.mjs
  */
 import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 
 const fuente = readFileSync(new URL('./tema.ts', import.meta.url), 'utf8');
 const color = Object.fromEntries(

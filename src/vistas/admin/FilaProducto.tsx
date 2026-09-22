@@ -8,6 +8,13 @@ import { CIFRAS_TABULARES, color, dinero, texto } from '../../ui/tema';
 /** Bajo este número el stock se marca con palabra, no solo con color. */
 const STOCK_BAJO = 5;
 
+/** El stock dicho con palabras. Ningún estado depende solo del color. */
+function MarcaStock({ stock }: { stock: number }) {
+  if (stock === 0) return <Marca tono="alerta">Agotado</Marca>;
+  if (stock <= STOCK_BAJO) return <Marca tono="espera">Quedan {stock}</Marca>;
+  return <Marca>{stock} en stock</Marca>;
+}
+
 /** Una línea del inventario. El precio es la tinta más grande: la cifra manda. */
 export function FilaProducto({
   producto,
@@ -18,9 +25,6 @@ export function FilaProducto({
   ultima: boolean;
   onPress: () => void;
 }) {
-  const agotado = producto.Stock === 0;
-  const bajo = !agotado && producto.Stock <= STOCK_BAJO;
-
   return (
     <FilaRegistro
       titulo={producto.Nombre}
@@ -34,15 +38,7 @@ export function FilaProducto({
           {dinero(producto.ValorUnitario)}
         </Text>
       }
-      marca={
-        agotado ? (
-          <Marca tono="alerta">Agotado</Marca>
-        ) : bajo ? (
-          <Marca tono="espera">Quedan {producto.Stock}</Marca>
-        ) : (
-          <Marca>{producto.Stock} en stock</Marca>
-        )
-      }
+      marca={<MarcaStock stock={producto.Stock} />}
       derecha={<Feather name="edit-2" size={16} color={color.tintaMedia} />}
     />
   );

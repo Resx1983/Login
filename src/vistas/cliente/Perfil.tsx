@@ -7,6 +7,7 @@ import { useMensajeFugaz } from '../../hooks/useMensajeFugaz';
 import { ClienteRow } from '../../types';
 import { Aviso, Boton, Cabecera, Campo, Cargando, Pie, Placa } from '../../ui/componentes';
 import { color, espacio, texto } from '../../ui/tema';
+import { esCorreoValido } from '../../validacion';
 
 type Campos = { nombre: string; apellido: string; correo: string };
 
@@ -14,7 +15,7 @@ function validar(campos: Campos): Partial<Campos> {
   const e: Partial<Campos> = {};
   if (!campos.nombre.trim()) e.nombre = 'Escribe tu nombre como aparece en la factura.';
   if (!campos.apellido.trim()) e.apellido = 'Escribe tu apellido.';
-  if (!campos.correo.trim() || !/\S+@\S+\.\S+/.test(campos.correo.trim())) {
+  if (!esCorreoValido(campos.correo)) {
     e.correo = 'Ese correo no tiene un formato válido. Revisa que incluya @ y un dominio.';
   }
   return e;

@@ -6,6 +6,23 @@ import { ONDA, ONDA_CLARA, RADIO, TOQUE_MINIMO, color, espacio, texto } from './
 type Tipo = 'tinta' | 'contorno';
 
 /**
+ * Los tres colores de un botón según su estado, en un solo sitio.
+ *
+ * Desactivado gana sobre el tipo: un contorno inhabilitado es una plantilla
+ * inerte con filo, no un contorno transparente — así el control conserva su
+ * silueta en todos sus estados.
+ */
+function paleta(tipo: Tipo, desactivado?: boolean) {
+  if (desactivado) {
+    return { fondo: color.inerte, frente: color.sobreInerte, onda: ONDA };
+  }
+  if (tipo === 'tinta') {
+    return { fondo: color.tinta, frente: color.sobreTinta, onda: ONDA_CLARA };
+  }
+  return { fondo: 'transparent', frente: color.tinta, onda: ONDA };
+}
+
+/**
  * La acción de la pantalla. `tinta` es la primaria —una por pantalla, en la
  * zona del pulgar—; `contorno` es todo lo demás.
  *
@@ -30,10 +47,7 @@ export function Boton({
   style?: ViewStyle;
 }) {
   const bloqueado = !!(cargando || desactivado);
-  const esTinta = tipo === 'tinta';
-
-  const fondo = desactivado ? color.inerte : esTinta ? color.tinta : 'transparent';
-  const frente = desactivado ? color.sobreInerte : esTinta ? color.sobreTinta : color.tinta;
+  const { fondo, frente, onda } = paleta(tipo, desactivado);
 
   return (
     <Pressable
@@ -41,7 +55,7 @@ export function Boton({
       disabled={bloqueado}
       accessibilityRole="button"
       accessibilityState={{ disabled: bloqueado, busy: !!cargando }}
-      android_ripple={bloqueado ? undefined : esTinta ? ONDA_CLARA : ONDA}
+      android_ripple={bloqueado ? undefined : onda}
       style={({ pressed }) => [
         s.boton,
         { backgroundColor: fondo },

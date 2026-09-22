@@ -58,6 +58,7 @@ import { CarritoProvider } from './src/context/CarritoContext';
 import { initDb } from './src/db';
 import { LoginRow, Rol, RootStackParamList } from './src/types';
 import { color } from './src/ui/tema';
+import { esCorreoValido } from './src/validacion';
 import Home from './src/vistas/Home';
 import Login from './src/vistas/Login';
 import Register from './src/vistas/Register';
@@ -80,7 +81,7 @@ function validateCredentials(email: string, password: string): string | null {
     return 'Escribe tu correo y tu contraseña para entrar.';
   }
 
-  if (!/\S+@\S+\.\S+/.test(trimmedEmail)) {
+  if (!esCorreoValido(trimmedEmail)) {
     return 'Ese correo no tiene un formato válido. Revisa que incluya @ y un dominio.';
   }
 
